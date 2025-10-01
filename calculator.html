@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>다기능 계산기</title>
+<style>
+:root {
+  --bg: #f5f7fb;
+  --fg: #0f172a;
+  --muted: #64748b;
+  --accent: #2563eb;
+  --accent-strong: #1d4ed8;
+  --card: rgba(255, 255, 255, 0.92);
+  --border: rgba(15, 23, 42, 0.1);
+  --shadow: 0 24px 48px rgba(15, 23, 42, 0.14);
+  --btn-bg: rgba(15, 23, 42, 0.04);
+  --btn-hover: rgba(37, 99, 235, 0.1);
+  --btn-active: rgba(37, 99, 235, 0.2);
+  --danger: #dc2626;
+  --success: #16a34a;
+}
+[data-theme="dark"] {
+  --bg: #0b1220;
+  --fg: #e2e8f0;
+  --muted: #94a3b8;
+  --accent: #38bdf8;
+  --accent-strong: #0ea5e9;
+  --card: rgba(15, 23, 42, 0.78);
+  --border: rgba(226, 232, 240, 0.08);
+  --shadow: 0 24px 48px rgba(2, 6, 23, 0.7);
+  --btn-bg: rgba(148, 163, 184, 0.08);
+  --btn-hover: rgba(56, 189, 248, 0.16);
+  --btn-active: rgba(56, 189, 248, 0.28);
+  --danger: #f87171;
+  --success: #34d399;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Segoe UI", "Pretendard", "Apple SD Gothic Neo", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  display: flex;
+  justify-content: center;
+  padding: clamp(16px, 4vw, 40px);
+}
+main {
+  width: min(1080px, 100%);
+  background: var(--card);
+  border-radius: 28px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+  display: grid;
+  gap: 20px;
+  padding: clamp(18px, 3vw, 28px);
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 1000px) {
+  main {
+    grid-template-columns: minmax(0, 2fr) minmax(360px, 1fr);
+    align-items: start;
+  }
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+  align-items: center;
+}
+.toolbar-group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: 14px;
+  padding: 12px 18px;
+  background: var(--btn-bg);
+  color: var(--fg);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+  position: relative;
+  overflow: hidden;
+  min-width: 58px;
+}
+button.secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+}
+button.accent {
+  background: var(--accent);
+  color: #fff;
+}
+button:hover, button:focus-visible {
+  background: var(--btn-hover);
+  outline: none;
+}
+button:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+button:active {
+  transform: translateY(1px);
+  background: var(--btn-active);
+}
+button.accent:hover {
+  background: var(--accent-strong);
+}
+button.rippling::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  animation: ripple 0.4s ease-out;
+  pointer-events: none;
+}
+@keyframes ripple {
+  from { opacity: 0.6; transform: translate(-50%, -50%) scale(0.4); }
+  to { opacity: 0; transform: translate(-50%, -50%) scale(6); }
+}
+.display {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 20px;
+  border-radius: 22px;
+  border: 1px solid var(--border);
+  background: rgba(148, 163, 184, 0.06);
+  overflow: hidden;
+}
+.expression-line {
+  font-size: clamp(0.9rem, 1.5vw, 1.05rem);
+  color: var(--muted);
+  min-height: 1.2em;
+  white-space: nowrap;
+  overflow-x: auto;
+  text-align: right;
+}
+.result-line {
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+  overflow-x: auto;
+}
+memory-indicator {
+  text-align: right;
+  color: var(--accent);
+  font-size: 0.9rem;
+  min-height: 1rem;
+}
+.status-line {
+  min-height: 1.2rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.status-line.error {
+  color: var(--danger);
+}
+.calculator-panel {
+  display: grid;
+  gap: 18px;
+}
+.keypad {
+  display: grid;
+  gap: 14px;
+}
+.key-row {
+  display: grid;
+  gap: 10px;
+}
+.key-row.group-a {
+  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+}
+.key-row.group-b {
+  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+}
+.key-row.group-c {
+  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+}
+.key-button {
+  padding: 16px 0;
+  font-size: 1.1rem;
+  text-transform: none;
+}
+.key-button[data-action="equals"] {
+  font-size: 1.3rem;
+  background: var(--accent);
+  color: #fff;
+}
+.history-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.history-panel {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(148, 163, 184, 0.06);
+  padding: 14px;
+  max-height: clamp(220px, 50vh, 420px);
+  overflow-y: auto;
+  display: none;
+}
+.history-panel.active {
+  display: block;
+}
+.history-item {
+  padding: 10px 12px;
+  border-radius: 12px;
+  display: grid;
+  gap: 4px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.history-item:hover, .history-item:focus-visible {
+  background: var(--btn-hover);
+  outline: none;
+}
+.history-expression {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.history-result {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+@media (max-width: 720px) {
+  main {
+    padding: 16px;
+  }
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .toolbar-group {
+    justify-content: space-between;
+  }
+  .history-panel {
+    max-height: 260px;
+  }
+  .key-button {
+    padding: 14px 0;
+  }
+}
+</style>
+</head>
+<body>
+<main>
+  <section class="calculator-panel" aria-label="계산기">
+    <div class="toolbar" role="toolbar" aria-label="계산기 도구">
+      <div class="toolbar-group">
+        <button type="button" id="darkModeBtn" aria-label="다크 모드 전환">🌙 다크 모드</button>
+        <button type="button" id="historyToggleBtn" aria-controls="historyPanel" aria-expanded="false">기록</button>
+        <button type="button" id="clearHistoryBtn">기록 삭제</button>
+        <button type="button" id="exportHistoryBtn">기록 내보내기</button>
+      </div>
+      <div class="toolbar-group">
+        <button type="button" id="copyResultBtn">결과 복사</button>
+      </div>
+    </div>
+
+    <div class="display" aria-live="off">
+      <div class="expression-line" id="expressionLine" aria-live="polite"></div>
+      <div class="result-line" id="resultLine" aria-live="polite">0</div>
+      <div class="memory-indicator" id="memoryIndicator"></div>
+      <div class="status-line" id="statusLine"></div>
+    </div>
+
+    <div class="keypad" role="group" aria-label="계산기 키패드">
+      <div class="key-row group-a">
+        <button type="button" class="key-button" data-action="toggle-deg" aria-label="각도 단위 전환">DEG</button>
+        <button type="button" class="key-button" data-action="toggle-hyp" aria-label="하이퍼볼릭 전환">HYP</button>
+        <button type="button" class="key-button" data-action="memory-clear" aria-label="메모리 클리어">MC</button>
+        <button type="button" class="key-button" data-action="memory-recall" aria-label="메모리 불러오기">MR</button>
+        <button type="button" class="key-button" data-action="memory-add" aria-label="메모리에 더하기">M+</button>
+        <button type="button" class="key-button" data-action="memory-subtract" aria-label="메모리에서 빼기">M-</button>
+        <button type="button" class="key-button" data-action="memory-store" aria-label="메모리에 저장">MS</button>
+        <button type="button" class="key-button" data-action="clear" aria-label="전체 지우기">C</button>
+        <button type="button" class="key-button" data-action="backspace" aria-label="한 글자 지우기">⌫</button>
+      </div>
+
+      <div class="key-row group-b">
+        <button type="button" class="key-button" data-func="sin" data-action="function" aria-label="사인">sin</button>
+        <button type="button" class="key-button" data-func="cos" data-action="function" aria-label="코사인">cos</button>
+        <button type="button" class="key-button" data-func="tan" data-action="function" aria-label="탄젠트">tan</button>
+        <button type="button" class="key-button" data-func="ln" data-action="function" aria-label="자연로그">ln</button>
+        <button type="button" class="key-button" data-func="log" data-action="function" aria-label="상용로그">log</button>
+        <button type="button" class="key-button" data-action="sqrt" aria-label="제곱근">√</button>
+        <button type="button" class="key-button" data-action="square" aria-label="제곱">x²</button>
+        <button type="button" class="key-button" data-action="power" aria-label="거듭제곱">xʸ</button>
+        <button type="button" class="key-button" data-action="reciprocal" aria-label="역수">1/x</button>
+        <button type="button" class="key-button" data-action="factorial" aria-label="팩토리얼">n!</button>
+        <button type="button" class="key-button" data-value="π" data-action="constant" aria-label="파이">π</button>
+        <button type="button" class="key-button" data-value="e" data-action="constant" aria-label="자연상수 e">e</button>
+        <button type="button" class="key-button" data-action="negate" aria-label="부호 전환">±</button>
+        <button type="button" class="key-button" data-action="percent" aria-label="퍼센트">%</button>
+      </div>
+
+      <div class="key-row group-c">
+        <button type="button" class="key-button" data-value="7" data-action="digit" aria-label="7">7</button>
+        <button type="button" class="key-button" data-value="8" data-action="digit" aria-label="8">8</button>
+        <button type="button" class="key-button" data-value="9" data-action="digit" aria-label="9">9</button>
+        <button type="button" class="key-button" data-value="÷" data-action="operator" aria-label="나누기">÷</button>
+
+        <button type="button" class="key-button" data-value="4" data-action="digit" aria-label="4">4</button>
+        <button type="button" class="key-button" data-value="5" data-action="digit" aria-label="5">5</button>
+        <button type="button" class="key-button" data-value="6" data-action="digit" aria-label="6">6</button>
+        <button type="button" class="key-button" data-value="×" data-action="operator" aria-label="곱하기">×</button>
+
+        <button type="button" class="key-button" data-value="1" data-action="digit" aria-label="1">1</button>
+        <button type="button" class="key-button" data-value="2" data-action="digit" aria-label="2">2</button>
+        <button type="button" class="key-button" data-value="3" data-action="digit" aria-label="3">3</button>
+        <button type="button" class="key-button" data-value="−" data-action="operator" aria-label="빼기">−</button>
+
+        <button type="button" class="key-button" data-value="0" data-action="digit" aria-label="0">0</button>
+        <button type="button" class="key-button" data-value="." data-action="decimal" aria-label="소수점">.</button>
+        <button type="button" class="key-button" data-value="+" data-action="operator" aria-label="더하기">+</button>
+        <button type="button" class="key-button accent" data-action="equals" aria-label="계산">=</button>
+
+        <button type="button" class="key-button" data-value="(" data-action="parenthesis" aria-label="여는 괄호">(</button>
+        <button type="button" class="key-button" data-value=")" data-action="parenthesis" aria-label="닫는 괄호">)</button>
+        <button type="button" class="key-button" data-action="power-symbol" aria-label="지수 기호">^</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="history-container" aria-label="계산 기록">
+    <div class="history-header">
+      <h2 style="margin:0;font-size:1.1rem;">기록</h2>
+      <span id="historyCount" class="small-print"></span>
+    </div>
+    <div id="historyPanel" class="history-panel" role="list" aria-live="polite"></div>
+  </section>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  const SETTINGS_KEY = "calc.settings.v1";
+  const HISTORY_KEY = "calc.history.v1";
+  const MAX_HISTORY = 50;
+
+  const expressionLine = document.getElementById("expressionLine");
+  const resultLine = document.getElementById("resultLine");
+  const statusLine = document.getElementById("statusLine");
+  const memoryIndicator = document.getElementById("memoryIndicator");
+  const historyPanel = document.getElementById("historyPanel");
+  const historyCount = document.getElementById("historyCount");
+  const historyToggleBtn = document.getElementById("historyToggleBtn");
+  const clearHistoryBtn = document.getElementById("clearHistoryBtn");
+  const exportHistoryBtn = document.getElementById("exportHistoryBtn");
+  const copyResultBtn = document.getElementById("copyResultBtn");
+  const darkModeBtn = document.getElementById("darkModeBtn");
+  const degBtn = document.querySelector('[data-action="toggle-deg"]');
+  const hypBtn = document.querySelector('[data-action="toggle-hyp"]');
+  const keypad = document.querySelector(".keypad");
+  const trigButtons = Array.from(document.querySelectorAll('[data-action="function"][data-func]'));
+  const expressionButtons = Array.from(document.querySelectorAll(".key-button"));
+  const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || "");
+  const supportsVibrate = navigator.vibrate ? true : false;
+
+  const state = {
+    expression: "",
+    result: "0",
+    memory: 0,
+    angleMode: "DEG",
+    hyp: false,
+    darkMode: false,
+    history: [],
+    lastAnswer: 0
+  };
+
+  function loadSettings() {
+    try {
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (saved) {
+          state.angleMode = saved.angleMode || "DEG";
+          state.hyp = Boolean(saved.hyp);
+          state.darkMode = Boolean(saved.darkMode);
+          state.memory = Number(saved.memory) || 0;
+        }
+      }
+    } catch (err) {
+      console.warn("settings load failed", err);
+    }
+    try {
+      const historyRaw = localStorage.getItem(HISTORY_KEY);
+      if (historyRaw) {
+        const list = JSON.parse(historyRaw);
+        if (Array.isArray(list)) {
+          state.history = list.slice(0, MAX_HISTORY);
+        }
+      }
+    } catch (err) {
+      console.warn("history load failed", err);
+    }
+  }
+
+  function saveSettings() {
+    const payload = {
+      angleMode: state.angleMode,
+      hyp: state.hyp,
+      darkMode: state.darkMode,
+      memory: state.memory
+    };
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(payload));
+    } catch (err) {
+      console.warn("settings save failed", err);
+    }
+  }
+
+  function saveHistory() {
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(state.history));
+    } catch (err) {
+      console.warn("history save failed", err);
+    }
+  }
+
+  function vibrate() {
+    if (supportsVibrate) {
+      navigator.vibrate(10);
+    }
+  }
+
+  function addRipple(btn) {
+    btn.classList.remove("rippling");
+    void btn.offsetWidth;
+    btn.classList.add("rippling");
+    setTimeout(() => btn.classList.remove("rippling"), 350);
+  }
+
+  function updateTrigLabels() {
+    trigButtons.forEach(btn => {
+      const base = btn.dataset.funcBase || btn.dataset.func;
+      if (!btn.dataset.funcBase) {
+        btn.dataset.funcBase = base;
+      }
+      if (state.hyp) {
+        const hypName = base.replace("sin", "sinh").replace("cos", "cosh").replace("tan", "tanh");
+        btn.dataset.func = hypName;
+        btn.textContent = hypName;
+        btn.setAttribute("aria-label", hypName);
+      } else {
+        btn.dataset.func = base;
+        btn.textContent = base;
+        btn.setAttribute("aria-label", base);
+      }
+    });
+    hypBtn.classList.toggle("accent", state.hyp);
+  }
+
+  function updateDegButton() {
+    degBtn.textContent = state.angleMode;
+    degBtn.classList.toggle("accent", state.angleMode === "RAD");
+  }
+
+  function updateDarkMode() {
+    if (state.darkMode) {
+      document.body.setAttribute("data-theme", "dark");
+      darkModeBtn.textContent = "☀️ 라이트 모드";
+    } else {
+      document.body.removeAttribute("data-theme");
+      darkModeBtn.textContent = "🌙 다크 모드";
+    }
+  }
+
+  function updateMemoryIndicator() {
+    memoryIndicator.textContent = state.memory !== 0 ? "M" : "";
+  }
+
+  function updateHistoryUI() {
+    historyPanel.innerHTML = "";
+    if (!state.history.length) {
+      const empty = document.createElement("p");
+      empty.textContent = "기록이 없습니다.";
+      empty.className = "small-print";
+      historyPanel.appendChild(empty);
+    } else {
+      state.history.forEach(entry => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "history-item";
+        item.setAttribute("role", "listitem");
+        item.dataset.expression = entry.expression;
+        item.dataset.result = entry.result;
+        item.innerHTML = `
+          <span class="history-expression">${entry.expression}</span>
+          <span class="history-result">${entry.result}</span>
+          <span class="small-print">${new Date(entry.timestamp).toLocaleString()}</span>
+        `;
+        item.addEventListener("click", () => {
+          state.expression = entry.expression;
+          evaluateExpression();
+          updateDisplay();
+          historyToggleBtn.click();
+        });
+        historyPanel.appendChild(item);
+      });
+    }
+    historyCount.textContent = `${state.history.length}개`;
+  }
+
+  function addHistory(expression, result) {
+    if (!expression.trim()) return;
+    state.history.unshift({
+      expression,
+      result,
+      timestamp: new Date().toISOString()
+    });
+    if (state.history.length > MAX_HISTORY) {
+      state.history.length = MAX_HISTORY;
+    }
+    saveHistory();
+    updateHistoryUI();
+  }
+
+  function clearHistory() {
+    state.history = [];
+    saveHistory();
+    updateHistoryUI();
+    showStatus("기록을 모두 삭제했습니다.", "");
+  }
+
+  function exportHistory() {
+    if (!state.history.length) {
+      showStatus("내보낼 기록이 없습니다.", "error");
+      return;
+    }
+    const headers = ["순번", "표현식", "결과", "시간"];
+    const rows = state.history.map((entry, index) => [
+      index + 1,
+      `"${entry.expression.replace(/"/g, '""')}"`,
+      `"${entry.result.replace(/"/g, '""')}"`,
+      entry.timestamp
+    ]);
+    const csv = [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "calc-history.csv";
+    document.body.appendChild(anchor);
+    anchor.click();
+    setTimeout(() => {
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+    }, 0);
+  }
+
+  function showStatus(message, type = "") {
+    statusLine.textContent = message;
+    statusLine.className = "status-line" + (type ? ` ${type}` : "");
+  }
+
+  function updateDisplay() {
+    expressionLine.textContent = state.expression || "0";
+    resultLine.textContent = state.result;
+    updateMemoryIndicator();
+    updateDegButton();
+    updateTrigLabels();
+    updateDarkMode();
+  }
+
+  function appendToExpression(str) {
+    state.expression += str;
+  }
+
+  function handleDigit(value) {
+    appendToExpression(value);
+    evaluateExpression({ silent: true });
+  }
+
+  function handleDecimal() {
+    const lastNumber = state.expression.match(/(\d+(\.\d*)?|\.\d*)$/);
+    if (lastNumber && lastNumber[0].includes(".")) return;
+    if (!lastNumber) {
+      appendToExpression("0.");
+    } else {
+      appendToExpression(".");
+    }
+    evaluateExpression({ silent: true });
+  }
+
+  function handleOperator(op) {
+    const normalized = op === "×" ? "*" : op === "÷" ? "/" : op === "−" ? "-" : op;
+    if (!state.expression) {
+      if (normalized === "-") {
+        appendToExpression("-");
+      }
+      return;
+    }
+    if (/[+\-*/^\.]$/.test(state.expression)) {
+      state.expression = state.expression.replace(/[+\-*/^\.]+$/, normalized);
+    } else {
+      appendToExpression(normalized);
+    }
+  }
+
+  function handleParenthesis(value) {
+    appendToExpression(value);
+  }
+
+  function handleFunction(fnName) {
+    appendToExpression(`${fnName}(`);
+  }
+
+  function handleSqrt() {
+    appendToExpression("sqrt(");
+  }
+
+  function handleSquare() {
+    if (!state.expression) return;
+    state.expression = `(${state.expression})^2`;
+  }
+
+  function handlePower() {
+    if (!state.expression) return;
+    appendToExpression("^");
+  }
+
+  function handlePowerSymbol() {
+    appendToExpression("^");
+  }
+
+  function handleReciprocal() {
+    if (!state.expression && state.result) {
+      state.expression = `1/(${state.result})`;
+    } else if (state.expression) {
+      state.expression = `1/(${state.expression})`;
+    }
+  }
+
+  function handleFactorial() {
+    if (!state.expression) return;
+    appendToExpression("!");
+  }
+
+  function handleConstant(value) {
+    if (value === "π") {
+      appendToExpression("π");
+    } else if (value === "e") {
+      appendToExpression("e");
+    }
+    evaluateExpression({ silent: true });
+  }
+
+  function handleNegate() {
+    if (!state.expression) {
+      if (state.result && state.result !== "0") {
+        state.expression = state.result.startsWith("-") ? state.result.slice(1) : `-${state.result}`;
+      }
+      return;
+    }
+    const match = state.expression.match(/([+\-*/^(]|^)([\-]?\d+(\.\d+)?|[\-]?\.\d+)$/
+    );
+    if (match) {
+      const prefix = state.expression.slice(0, match.index + match[1].length);
+      let number = match[2];
+      number = number.startsWith("-") ? number.slice(1) : `-${number}`;
+      state.expression = prefix + number;
+    } else {
+      if (state.expression.startsWith("-(") && state.expression.endsWith(")")) {
+        state.expression = state.expression.slice(2, -1);
+      } else {
+        state.expression = `-(${state.expression})`;
+      }
+    }
+    evaluateExpression({ silent: true });
+  }
+
+  function handlePercent() {
+    appendToExpression("%");
+  }
+
+  function handleBackspace() {
+    state.expression = state.expression.slice(0, -1);
+    evaluateExpression({ silent: true });
+  }
+
+  function handleClear() {
+    state.expression = "";
+    state.result = "0";
+    showStatus("", "");
+  }
+
+  function toggleAngleMode() {
+    state.angleMode = state.angleMode === "DEG" ? "RAD" : "DEG";
+    saveSettings();
+    showStatus(`각도 단위: ${state.angleMode}`, "");
+  }
+
+  function toggleHyp() {
+    state.hyp = !state.hyp;
+    saveSettings();
+    showStatus(state.hyp ? "하이퍼볼릭 모드" : "일반 삼각함수 모드", "");
+  }
+
+  function toggleDarkMode() {
+    state.darkMode = !state.darkMode;
+    saveSettings();
+    updateDarkMode();
+  }
+
+  function memoryClear() {
+    state.memory = 0;
+    saveSettings();
+    updateMemoryIndicator();
+    showStatus("메모리 지움", "");
+  }
+
+  function memoryRecall() {
+    if (state.memory !== 0) {
+      state.expression = state.memory.toString();
+      evaluateExpression();
+    }
+    showStatus("메모리 불러오기", "");
+  }
+
+  function memoryStore() {
+    state.memory = Number(state.result) || 0;
+    saveSettings();
+    updateMemoryIndicator();
+    showStatus("메모리에 저장", "");
+  }
+
+  function memoryAdd() {
+    state.memory += Number(state.result) || 0;
+    saveSettings();
+    updateMemoryIndicator();
+    showStatus("메모리에 더하기", "");
+  }
+
+  function memorySubtract() {
+    state.memory -= Number(state.result) || 0;
+    saveSettings();
+    updateMemoryIndicator();
+    showStatus("메모리에서 빼기", "");
+  }
+
+  function copyResult() {
+    const text = state.result;
+    if (!text) {
+      showStatus("복사할 결과가 없습니다.", "error");
+      return;
+    }
+    const copy = async () => {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+    };
+    copy().then(() => showStatus("결과를 복사했습니다.", "success"))
+      .catch(() => showStatus("복사에 실패했습니다.", "error"));
+  }
+
+  function tokenize(expr) {
+    const tokens = [];
+    const sanitized = expr
+      .replace(/×/g, "*")
+      .replace(/÷/g, "/")
+      .replace(/−/g, "-")
+      .replace(/π/g, "pi")
+      .replace(/√/g, "sqrt");
+    let i = 0;
+    let lastToken = null;
+    let lastBinaryOperator = null;
+
+    const isDigit = c => /[0-9]/.test(c);
+
+    while (i < sanitized.length) {
+      const char = sanitized[i];
+
+      if (char === " " || char === "\t") {
+        i += 1;
+        continue;
+      }
+
+      if (isDigit(char) || (char === ".")) {
+        let numStr = char;
+        i += 1;
+        while (i < sanitized.length && /[0-9.]/.test(sanitized[i])) {
+          numStr += sanitized[i];
+          i += 1;
+        }
+        if (numStr === ".") {
+          throw new Error("SYNTAX ERROR");
+        }
+        tokens.push({ type: "number", value: parseFloat(numStr) });
+        lastToken = tokens[tokens.length - 1];
+        continue;
+      }
+
+      if (/[A-Za-z]/.test(char)) {
+        let name = char;
+        i += 1;
+        while (i < sanitized.length && /[A-Za-z]/.test(sanitized[i])) {
+          name += sanitized[i];
+          i += 1;
+        }
+        name = name.toLowerCase();
+        if (name === "pi") {
+          tokens.push({ type: "number", value: Math.PI });
+          lastToken = tokens[tokens.length - 1];
+        } else if (name === "e") {
+          tokens.push({ type: "number", value: Math.E });
+          lastToken = tokens[tokens.length - 1];
+        } else {
+          tokens.push({ type: "function", value: name });
+          lastToken = tokens[tokens.length - 1];
+        }
+        continue;
+      }
+
+      if (char === "(") {
+        tokens.push({ type: "leftParen", value: "(" });
+        lastToken = tokens[tokens.length - 1];
+        i += 1;
+        continue;
+      }
+
+      if (char === ")") {
+        tokens.push({ type: "rightParen", value: ")" });
+        lastToken = tokens[tokens.length - 1];
+        i += 1;
+        continue;
+      }
+
+      if (char === ",") {
+        tokens.push({ type: "comma", value: "," });
+        lastToken = tokens[tokens.length - 1];
+        i += 1;
+        continue;
+      }
+
+      if (char === "%" || char === "!") {
+        const token = {
+          type: "operator",
+          value: char,
+          precedence: 5,
+          associativity: "right",
+          arity: 1,
+          position: "postfix",
+          contextOperator: lastBinaryOperator
+        };
+        tokens.push(token);
+        lastToken = token;
+        i += 1;
+        continue;
+      }
+
+      if (char === "-" && (!lastToken || ["operator", "leftParen", "function", "comma"].includes(lastToken.type))) {
+        tokens.push({
+          type: "operator",
+          value: "neg",
+          precedence: 5,
+          associativity: "right",
+          arity: 1
+        });
+        lastToken = tokens[tokens.length - 1];
+        i += 1;
+        continue;
+      }
+
+      if (["+", "-", "*", "/", "^"].includes(char)) {
+        const precedence = char === "+" || char === "-" ? 2 : (char === "*" || char === "/") ? 3 : 4;
+        const token = {
+          type: "operator",
+          value: char,
+          precedence,
+          associativity: char === "^" ? "right" : "left",
+          arity: 2
+        };
+        tokens.push(token);
+        lastToken = token;
+        lastBinaryOperator = char;
+        i += 1;
+        continue;
+      }
+
+      throw new Error("SYNTAX ERROR");
+    }
+    return tokens;
+  }
+
+  function toRPN(tokens) {
+    const output = [];
+    const stack = [];
+
+    tokens.forEach(token => {
+      if (token.type === "number") {
+        output.push(token);
+      } else if (token.type === "function") {
+        stack.push(token);
+      } else if (token.type === "operator") {
+        if (token.position === "postfix") {
+          while (stack.length) {
+            const top = stack[stack.length - 1];
+            if (top.type === "function" || (top.type === "operator" && top.precedence > token.precedence)) {
+              output.push(stack.pop());
+            } else {
+              break;
+            }
+          }
+          stack.push(token);
+        } else if (token.arity === 1 && token.value === "neg") {
+          while (stack.length) {
+            const top = stack[stack.length - 1];
+            if (top.type === "operator" && ((top.precedence > token.precedence) ||
+              (top.precedence === token.precedence && token.associativity === "left"))) {
+              output.push(stack.pop());
+            } else {
+              break;
+            }
+          }
+          stack.push(token);
+        } else {
+          while (stack.length) {
+            const top = stack[stack.length - 1];
+            if (top.type === "operator" &&
+                ((top.precedence > token.precedence) ||
+                (top.precedence === token.precedence && token.associativity === "left"))) {
+              output.push(stack.pop());
+            } else if (top.type === "function") {
+              output.push(stack.pop());
+            } else {
+              break;
+            }
+          }
+          stack.push(token);
+        }
+      } else if (token.type === "leftParen") {
+        stack.push(token);
+      } else if (token.type === "rightParen") {
+        while (stack.length && stack[stack.length - 1].type !== "leftParen") {
+          output.push(stack.pop());
+        }
+        if (!stack.length) throw new Error("SYNTAX ERROR");
+        stack.pop();
+        if (stack.length && stack[stack.length - 1].type === "function") {
+          output.push(stack.pop());
+        }
+      } else if (token.type === "comma") {
+        while (stack.length && stack[stack.length - 1].type !== "leftParen") {
+          output.push(stack.pop());
+        }
+        if (!stack.length) throw new Error("SYNTAX ERROR");
+      }
+    });
+
+    while (stack.length) {
+      const t = stack.pop();
+      if (t.type === "leftParen" || t.type === "rightParen") throw new Error("SYNTAX ERROR");
+      output.push(t);
+    }
+    return output;
+  }
+
+  function degToRad(value) {
+    return value * Math.PI / 180;
+  }
+
+  function factorial(n) {
+    if (!Number.isInteger(n) || n < 0 || n > 170) throw new Error("MATH ERROR");
+    let result = 1;
+    for (let i = 2; i <= n; i += 1) {
+      result *= i;
+    }
+    return result;
+  }
+
+  function evalRPN(rpn) {
+    const stack = [];
+
+    rpn.forEach(token => {
+      if (token.type === "number") {
+        stack.push(token.value);
+      } else if (token.type === "operator") {
+        if (token.arity === 1) {
+          const value = stack.pop();
+          if (value === undefined) throw new Error("SYNTAX ERROR");
+          if (token.value === "neg") {
+            stack.push(-value);
+          } else if (token.value === "!") {
+            stack.push(factorial(value));
+          } else if (token.value === "%") {
+            stack.push(value / 100);
+          } else {
+            throw new Error("SYNTAX ERROR");
+          }
+        } else if (token.arity === 2) {
+          const b = stack.pop();
+          const a = stack.pop();
+          if (a === undefined || b === undefined) throw new Error("SYNTAX ERROR");
+          let res;
+          switch (token.value) {
+            case "+":
+              res = a + b;
+              break;
+            case "-":
+              res = a - b;
+              break;
+            case "*":
+              res = a * b;
+              break;
+            case "/":
+              if (Math.abs(b) < 1e-15) throw new Error("MATH ERROR");
+              res = a / b;
+              break;
+            case "^":
+              res = Math.pow(a, b);
+              break;
+            default:
+              throw new Error("SYNTAX ERROR");
+          }
+          stack.push(res);
+        }
+      } else if (token.type === "function") {
+        const value = stack.pop();
+        if (value === undefined) throw new Error("SYNTAX ERROR");
+        const fn = token.value;
+        let result;
+        switch (fn) {
+          case "sin":
+            result = state.angleMode === "DEG" ? Math.sin(degToRad(value)) : Math.sin(value);
+            break;
+          case "cos":
+            result = state.angleMode === "DEG" ? Math.cos(degToRad(value)) : Math.cos(value);
+            break;
+          case "tan":
+            const angle = state.angleMode === "DEG" ? degToRad(value) : value;
+            result = Math.tan(angle);
+            break;
+          case "sinh":
+            result = Math.sinh(value);
+            break;
+          case "cosh":
+            result = Math.cosh(value);
+            break;
+          case "tanh":
+            result = Math.tanh(value);
+            break;
+          case "ln":
+            if (value <= 0) throw new Error("MATH ERROR");
+            result = Math.log(value);
+            break;
+          case "log":
+            if (value <= 0) throw new Error("MATH ERROR");
+            result = Math.log10(value);
+            break;
+          case "sqrt":
+            if (value < 0) throw new Error("MATH ERROR");
+            result = Math.sqrt(value);
+            break;
+          default:
+            throw new Error("SYNTAX ERROR");
+        }
+        stack.push(result);
+      } else {
+        throw new Error("SYNTAX ERROR");
+      }
+    });
+    if (stack.length !== 1) throw new Error("SYNTAX ERROR");
+    return stack[0];
+  }
+
+  function normalizeResult(value) {
+    if (!isFinite(value)) throw new Error("MATH ERROR");
+    if (Math.abs(value) < 1e-12) value = 0;
+    let str;
+    if (Math.abs(value) >= 1e12 || (Math.abs(value) > 0 && Math.abs(value) < 1e-9)) {
+      str = value.toExponential(8);
+    } else {
+      str = value.toPrecision(12);
+    }
+    if (str.includes("e")) {
+      const parts = str.split("e");
+      parts[0] = parts[0].replace(/(\.\d*?)0+$/,"$1").replace(/\.$/,"");
+      str = `${parts[0]}e${parts[1]}`;
+    } else {
+      str = Number(str).toString();
+    }
+    return str;
+  }
+
+  function evaluateExpression(options = {}) {
+    if (!state.expression) {
+      state.result = state.lastAnswer ? normalizeResult(state.lastAnswer) : "0";
+      return;
+    }
+    try {
+      const tokens = tokenize(state.expression);
+      const rpn = toRPN(tokens);
+      const resultValue = evalRPN(rpn);
+      const formatted = normalizeResult(resultValue);
+      state.result = formatted;
+      state.lastAnswer = resultValue;
+      if (!options.silent) {
+        addHistory(state.expression, formatted);
+        showStatus("계산 완료", "success");
+      }
+    } catch (err) {
+      if (!options.silent) {
+        showStatus(err.message || "오류가 발생했습니다.", "error");
+      }
+      if (!options.silent) state.result = "오류";
+    }
+  }
+
+  function handleEquals() {
+    if (!state.expression) return;
+    evaluateExpression();
+    updateDisplay();
+  }
+
+  function toggleHistoryPanel() {
+    const expanded = historyToggleBtn.getAttribute("aria-expanded") === "true";
+    historyToggleBtn.setAttribute("aria-expanded", String(!expanded));
+    historyPanel.classList.toggle("active", !expanded);
+  }
+
+  function handleButtonClick(event) {
+    const btn = event.target.closest("button");
+    if (!btn || !btn.dataset.action) return;
+    vibrate();
+    addRipple(btn);
+    const action = btn.dataset.action;
+    const value = btn.dataset.value;
+    switch (action) {
+      case "digit":
+        handleDigit(value);
+        break;
+      case "decimal":
+        handleDecimal();
+        break;
+      case "operator":
+        handleOperator(value);
+        break;
+      case "parenthesis":
+        handleParenthesis(value);
+        break;
+      case "function":
+        handleFunction(btn.dataset.func);
+        break;
+      case "sqrt":
+        appendToExpression("sqrt(");
+        break;
+      case "square":
+        handleSquare();
+        break;
+      case "power":
+        handlePower();
+        break;
+      case "power-symbol":
+        handlePowerSymbol();
+        break;
+      case "reciprocal":
+        handleReciprocal();
+        break;
+      case "factorial":
+        handleFactorial();
+        break;
+      case "constant":
+        handleConstant(value);
+        break;
+      case "negate":
+        handleNegate();
+        break;
+      case "percent":
+        handlePercent();
+        break;
+      case "backspace":
+        handleBackspace();
+        break;
+      case "clear":
+        handleClear();
+        break;
+      case "toggle-deg":
+        toggleAngleMode();
+        break;
+      case "toggle-hyp":
+        toggleHyp();
+        break;
+      case "memory-clear":
+        memoryClear();
+        break;
+      case "memory-recall":
+        memoryRecall();
+        break;
+      case "memory-add":
+        memoryAdd();
+        break;
+      case "memory-subtract":
+        memorySubtract();
+        break;
+      case "memory-store":
+        memoryStore();
+        break;
+      case "equals":
+        handleEquals();
+        break;
+      default:
+        break;
+    }
+    saveSettings();
+    updateDisplay();
+  }
+
+  function handleKeydown(event) {
+    if (event.defaultPrevented) return;
+    const key = event.key;
+    switch (key) {
+      case "0": case "1": case "2": case "3": case "4":
+      case "5": case "6": case "7": case "8": case "9":
+        handleDigit(key);
+        updateDisplay();
+        return;
+      case ".":
+        handleDecimal();
+        break;
+      case "+": case "-": case "*": case "/": case "^":
+        handleOperator(key);
+        break;
+      case "(": case ")":
+        handleParenthesis(key);
+        break;
+      case "Enter": case "=":
+        event.preventDefault();
+        handleEquals();
+        break;
+      case "Backspace":
+        event.preventDefault();
+        handleBackspace();
+        break;
+      case "Delete":
+        handleClear();
+        break;
+      case "%":
+        handlePercent();
+        break;
+      default:
+        return;
+    }
+    updateDisplay();
+  }
+
+  darkModeBtn.addEventListener("click", () => {
+    toggleDarkMode();
+    saveSettings();
+    updateDisplay();
+  });
+
+  keypad.addEventListener("click", handleButtonClick);
+  document.addEventListener("keydown", handleKeydown);
+  historyToggleBtn.addEventListener("click", () => {
+    toggleHistoryPanel();
+    vibrate();
+  });
+  clearHistoryBtn.addEventListener("click", () => {
+    clearHistory();
+    vibrate();
+  });
+  exportHistoryBtn.addEventListener("click", () => {
+    exportHistory();
+    vibrate();
+  });
+  copyResultBtn.addEventListener("click", () => {
+    copyResult();
+    vibrate();
+  });
+
+  loadSettings();
+  updateDarkMode();
+  updateTrigLabels();
+  updateDegButton();
+  updateMemoryIndicator();
+  updateHistoryUI();
+  evaluateExpression({ silent: true });
+  updateDisplay();
+})();
+</script>
+</body>
+</html>
