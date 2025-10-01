@@ -200,6 +200,26 @@ button.secondary:hover {
   button { width: 100%; }
   .toggle-row { justify-content: flex-start; }
 }
+.mode-hint{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:8px 12px; border-radius:999px;
+  border:1px solid var(--border); background:#f8fafc;
+  font-weight:600; font-size:.92rem; line-height:1.35;
+  max-width:100%; white-space:normal; word-break:keep-all;
+  transition:background .15s,border-color .15s,color .15s;
+}
+.mode-hint .dot{width:8px;height:8px;border-radius:50%;box-shadow:0 0 0 3px rgba(0,0,0,.04) inset;}
+.mode-hint .text{min-width:0;}  /* 모바일에서 줄바꿈 허용 */
+
+/* 상태별 색상 유지 */
+.mode-hint.mode-desktop{color:var(--accent);background:rgba(37,99,235,.08);border-color:rgba(37,99,235,.25)}
+.mode-hint.mode-desktop .dot{background:var(--accent)}
+.mode-hint.mode-mobile-auto{color:#ea580c;background:rgba(234,88,12,.08);border-color:rgba(234,88,12,.25)}
+.mode-hint.mode-mobile-auto .dot{background:#ea580c}
+.mode-hint.mode-mobile-forced{color:#0ea5a4;background:rgba(14,165,164,.08);border-color:rgba(14,165,164,.25)}
+.mode-hint.mode-mobile-forced .dot{background:#0ea5a4}
+
+.toggle-row{ margin-bottom:5px; }
 </style>
 </head>
 <body>
@@ -255,7 +275,10 @@ button.secondary:hover {
         <input type="checkbox" id="mobileModeToggle">
         모바일 모드 강제
       </label>
-      <span id="mobileHint" aria-live="polite"></span>
+      <div id="mobileHint" class="mode-hint" role="status" aria-live="polite">
+		<span class="dot" aria-hidden="true"></span>
+		<span class="text">모드 상태를 표시합니다.</span>
+	  </div>
     </div>
     <div class="actions">
       <button type="button" id="openUrlBtn" class="secondary">Open Login</button>
@@ -470,11 +493,30 @@ button.secondary:hover {
     saveState();
   }
 
-  function highlightMobileMode() {
-    MOBILE_HINT.textContent = isMobileMode()
-      ? "모바일 모드: 동일 탭에서 진행합니다."
-      : "데스크톱 모드: 백그라운드 로그인 사용.";
-  }
+	function getMode() {
+	  if (MOBILE_TOGGLE.checked) return 'mobile-forced';
+	  if (isMobileDevice) return 'mobile-auto';
+	  return 'desktop';
+	}
+
+	function highlightMobileMode() {
+	  const mode = getMode();
+	  // 클래스 적용
+	  MOBILE_HINT.className = 'mode-hint ' + (
+		mode === 'desktop' ? 'mode-desktop' :
+		mode === 'mobile-forced' ? 'mode-mobile-forced' : 'mode-mobile-auto'
+	  );
+	  // 텍스트 갱신
+	  const t = MOBILE_HINT.querySelector('.text');
+	  if (!t) return;
+	  if (mode === 'desktop') {
+		t.textContent = "데스크톱 모드: 백그라운드 로그인 사용.";
+	  } else if (mode === 'mobile-forced') {
+		t.textContent = "모바일 모드(강제): 로그인 후 원래 탭으로 돌아와 ‘Download Excel’을 눌러 주세요.";
+	  } else {
+		t.textContent = "모바일 감지됨: 로그인 후 원래 탭으로 돌아와 ‘Download Excel’ 진행.";
+	  }
+	}
 
   QUICK_BUTTONS.forEach(btn => btn.addEventListener("click", () => {
     const months = Number(btn.dataset.range);
@@ -495,43 +537,43 @@ button.secondary:hover {
     saveState();
   });
 
-OPEN_BTN.addEventListener("click", () => {
-  let url;
-  try {
-    url = buildLoginURL(true);
-  } catch {
-    return;
-  }
-  if (isMobileMode()) {
-    showStatus("로그인 화면으로 이동합니다...", "");
-    window.location.href = url;
-    return;
-  }
-  const frame = ensureLoginFrame();
-  if (loginTimeoutHandle) {
-    clearTimeout(loginTimeoutHandle);
-    loginTimeoutHandle = null;
-  }
-  frame.onload = () => {
-    if (loginTimeoutHandle) {
-      clearTimeout(loginTimeoutHandle);
-      loginTimeoutHandle = null;
-    }
-    showStatus("로그인 세션을 백그라운드에서 갱신했습니다.", "success");
-  };
-  frame.onerror = () => {
-    if (loginTimeoutHandle) {
-      clearTimeout(loginTimeoutHandle);
-      loginTimeoutHandle = null;
-    }
-    showStatus("로그인 호출에 실패했습니다. 새 탭에서 시도하세요.", "error");
-  };
-  frame.src = url;
-  showStatus("로그인 준비 중…", "");
-  loginTimeoutHandle = setTimeout(() => {
-    showStatus("페이지가 차단된 것 같습니다. 새 탭에서 직접 열어 확인해주세요.", "error");
-  }, 8000);
-});
+	OPEN_BTN.addEventListener("click", () => {
+	  let url;
+	  try {
+		url = buildLoginURL(true);
+	  } catch {
+		return;
+	  }
+	  if (isMobileMode()) {
+		showStatus("로그인으로 이동합니다. 로그인 완료 후 이전 화면(원래 탭)으로 돌아와 ‘Download Excel’을 눌러 주세요.", "");
+		window.location.href = url;
+		return;
+	  }
+	  const frame = ensureLoginFrame();
+	  if (loginTimeoutHandle) {
+		clearTimeout(loginTimeoutHandle);
+		loginTimeoutHandle = null;
+	  }
+	  frame.onload = () => {
+		if (loginTimeoutHandle) {
+		  clearTimeout(loginTimeoutHandle);
+		  loginTimeoutHandle = null;
+		}
+		showStatus("로그인 세션을 백그라운드에서 갱신했습니다.", "success");
+	  };
+	  frame.onerror = () => {
+		if (loginTimeoutHandle) {
+		  clearTimeout(loginTimeoutHandle);
+		  loginTimeoutHandle = null;
+		}
+		showStatus("로그인 호출에 실패했습니다. 새 탭에서 시도하세요.", "error");
+	  };
+	  frame.src = url;
+	  showStatus("로그인 준비 중…", "");
+	  loginTimeoutHandle = setTimeout(() => {
+		showStatus("페이지가 차단된 것 같습니다. 새 탭에서 직접 열어 확인해주세요.", "error");
+	  }, 8000);
+	});
 
   DOWNLOAD_BTN.addEventListener("click", () => {
     const from = FROM_INPUT.value;
