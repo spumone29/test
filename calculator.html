@@ -50,6 +50,7 @@ body {
 }
 main {
   width: min(1080px, 100%);
+  max-width: 390px;
   background: var(--card);
   border-radius: 28px;
   border: 1px solid var(--border);
@@ -59,12 +60,6 @@ main {
   gap: 20px;
   padding: clamp(18px, 3vw, 28px);
   grid-template-columns: minmax(0, 1fr);
-}
-@media (min-width: 1000px) {
-  main {
-    grid-template-columns: minmax(0, 2fr) minmax(360px, 1fr);
-    align-items: start;
-  }
 }
 .toolbar {
   display: flex;
