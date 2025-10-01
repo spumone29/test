@@ -635,59 +635,67 @@ button.secondary:hover {
     }
   });
 
-  function handleExcelFile(file) {
+	function handleExcelFile(file) {
 	  if (!PREVIEW_STATUS || !PREVIEW_TABLE) return;
 	  const name = file.name || "선택한 파일";
 	  const ext = (name.split(".").pop() || "").toLowerCase();
 	  clearExcelPreview();
-
 	  updatePreviewMessage(`'${name}' 파일을 읽는 중입니다...`, "");
 
-	  const reader = new FileReader();
-	  reader.onerror = () => updatePreviewMessage("파일을 읽는 데 실패했습니다.", "error");
-	  reader.onload = () => {
-		try {
-		  if (ext === "csv" || ext === "txt") {
-			const text = typeof reader.result === "string" ? reader.result : "";
-			if (!text.trim()) throw new Error("빈 파일");
-			renderCsvPreview(text);
-			updatePreviewMessage(`'${name}' CSV 내용을 표시했습니다.`, "success");
-			return;
+	  const readAsArray = () => {
+		const r = new FileReader();
+		r.onerror = () => updatePreviewMessage("파일을 읽는 데 실패했습니다.", "error");
+		r.onload = async () => {
+		  try {
+			// 1) xlsx / xls → SheetJS로 처리
+			if (["xlsx","xlsm","xltx","xltm","xls"].includes(ext)) {
+			  renderWorkbookPreview(r.result);        // ← BIFF(.xls) 포함
+			  updatePreviewMessage(`'${name}' 첫 번째 시트를 표시했습니다.`, "success");
+			  return;
+			}
+			// 2) html/htm → HTML 테이블 파서
+			if (["html","htm"].includes(ext)) {
+			  const text = decodeBuffer(r.result);
+			  renderHtmlTablePreview(text);
+			  updatePreviewMessage(`'${name}' 첫 번째 시트를 표시했습니다.`, "success");
+			  return;
+			}
+			// 3) 나머지는 텍스트로 재시도(csv/txt)
+			readAsText();
+		  } catch (e) {
+			// .xls가 HTML 내보내기 파일일 가능성 → 텍스트로 재시도
+			readAsText();
 		  }
-
-		  // .xlsx / .xlsm / .xltx / .xltm → SheetJS로 처리
-		  if (["xlsx", "xlsm", "xltx", "xltm"].includes(ext)) {
-			const buffer = reader.result; // ArrayBuffer
-			renderXlsxPreview(buffer);
-			updatePreviewMessage(`'${name}' 첫 번째 시트를 표시했습니다.`, "success");
-			return;
-		  }
-
-		  // .xls(HTML export) 또는 .html → 기존 HTML 테이블 파서
-		  if (ext === "xls" || ext === "html" || ext === "htm") {
-			const text = typeof reader.result === "string"
-			  ? reader.result
-			  : decodeBuffer(reader.result);
-			if (!text.trim()) throw new Error("표시할 데이터 없음");
-			renderHtmlTablePreview(text);
-			updatePreviewMessage(`'${name}' 첫 번째 시트를 표시했습니다.`, "success");
-			return;
-		  }
-
-		  updatePreviewMessage("지원하지 않는 형식입니다. .xlsx / .xls / .csv / .txt를 사용하세요.", "error");
-		} catch (err) {
-		  console.error(err);
-		  updatePreviewMessage("파일을 해석하지 못했습니다.", "error");
-		}
+		};
+		r.readAsArrayBuffer(file);
 	  };
 
-	  // 읽기 방식 선택
-	  if (ext === "csv" || ext === "txt") {
-		reader.readAsText(file);
-	  } else {
-		reader.readAsArrayBuffer(file); // xlsx/xls/html 모두 ArrayBuffer로
-	  }
+	  const readAsText = () => {
+		const r = new FileReader();
+		r.onerror = () => updatePreviewMessage("파일을 읽는 데 실패했습니다.", "error");
+		r.onload = () => {
+		  try {
+			const text = typeof r.result === "string" ? r.result : "";
+			if (!text.trim()) throw new Error("빈 파일");
+			// csv/txt 또는 html로 저장된 xls 처리
+			if (ext === "csv" || ext === "txt") {
+			  renderCsvPreview(text);
+			  updatePreviewMessage(`'${name}' CSV 내용을 표시했습니다.`, "success");
+			} else {
+			  renderHtmlTablePreview(text);
+			  updatePreviewMessage(`'${name}' 첫 번째 시트를 표시했습니다.`, "success");
+			}
+		  } catch (e) {
+			updatePreviewMessage("파일을 해석하지 못했습니다. .xlsx/.xls/.csv/.txt 형식을 사용하세요.", "error");
+		  }
+		};
+		r.readAsText(file);
+	  };
+
+	  // 기본 경로: ArrayBuffer → 실패 시 텍스트 파서로 폴백
+	  readAsArray();
 	}
+
 
 
   function decodeBuffer(buffer) {
@@ -759,6 +767,17 @@ button.secondary:hover {
 	  const ws = wb.Sheets[first];
 
 	  // HTML로 변환 후, 기존 HTML 테이블 렌더러 재사용(정제해서 출력)
+	  const html = XLSX.utils.sheet_to_html(ws, { header: "", footer: "" });
+	  renderHtmlTablePreview(html);
+	}
+	
+	function renderWorkbookPreview(buffer) {
+	  // SheetJS로 워크북 파싱(.xlsx/.xls 모두 지원)
+	  const wb = XLSX.read(buffer, { type: "array" });
+	  const sheetName = wb.SheetNames && wb.SheetNames[0];
+	  if (!sheetName) throw new Error("시트를 찾지 못했습니다.");
+	  const ws = wb.Sheets[sheetName];
+	  // HTML로 변환 후 기존 HTML 렌더러 재사용
 	  const html = XLSX.utils.sheet_to_html(ws, { header: "", footer: "" });
 	  renderHtmlTablePreview(html);
 	}
