@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Realtop 자동화 컨트롤 패널 (모바일 대응)</title>
+<style>
+:root {
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --border: #dbe0ea;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --text: #1f2a37;
+  --muted: #64748b;
+  --danger: #dc2626;
+  --success: #15803d;
+  --radius: 14px;
+  --shadow: 0 18px 32px rgba(15, 23, 42, 0.12);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Segoe UI", "Pretendard", "Apple SD Gothic Neo", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: clamp(20px, 4vw, 40px);
+  display: flex;
+  justify-content: center;
+}
+main {
+  width: min(960px, 100%);
+  background: var(--card);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  padding: clamp(20px, 4vw, 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+header h1 {
+  margin: 0;
+  font-size: clamp(1.6rem, 2.4vw, 2.1rem);
+}
+header p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.form-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+label {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+input[type="text"],
+input[type="date"] {
+  font: inherit;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  transition: border 0.15s ease, box-shadow 0.15s ease;
+}
+input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18);
+}
+button {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  background: var(--accent);
+  color: #fff;
+  transition: background 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
+}
+button.secondary {
+  background: #fff;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.18);
+}
+button:active {
+  transform: translateY(1px);
+}
+button.secondary:hover {
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
+}
+.range-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.actions button {
+  flex: 1 1 200px;
+}
+.status {
+  font-size: 0.9rem;
+  color: var(--muted);
+  min-height: 1.2rem;
+}
+.status.error { color: var(--danger); }
+.status.success { color: var(--success); }
+.small-print {
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.toggle-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+.toggle-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--text);
+}
+.preview-card {
+  margin-top: 12px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: clamp(16px, 3vw, 22px);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.excel-preview {
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 12px;
+  max-height: clamp(220px, 30vh, 360px);
+}
+.excel-preview table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.excel-preview th,
+.excel-preview td {
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  text-align: left;
+  background: #fff;
+}
+.excel-preview th {
+  background: rgba(37, 99, 235, 0.08);
+  font-weight: 600;
+}
+.preview-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.preview-status.preview-error { color: var(--danger); }
+.preview-status.preview-success { color: var(--success); }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+@media (max-width: 640px) {
+  .actions { flex-direction: column; }
+  button { width: 100%; }
+  .toggle-row { justify-content: flex-start; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Realtop 자동화 컨트롤 패널</h1>
+    <p>
+      ① 정보를 입력하고 저장합니다.<br>
+      ② “Open Login”으로 세션을 확보합니다 (모바일/모드에 따라 새 탭 or 백그라운드).<br>
+      ③ “Download Excel”로 설정한 기간을 내려받습니다.<br>
+      ④ 내려받은 파일을 “엑셀파일읽기”로 선택하면 첫 번째 시트를 바로 미리볼 수 있습니다.
+    </p>
+  </header>
+
+  <section aria-labelledby="login-fields">
+    <h2 id="login-fields" class="sr-only">로그인 파라미터</h2>
+    <div class="form-grid">
+      <div class="field">
+        <label for="cmInstCd">기관 코드 (cmInstCd)</label>
+        <input id="cmInstCd" name="cmInstCd" type="text" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="cmUserNo">사용자 번호 (cmUserNo)</label>
+        <input id="cmUserNo" name="cmUserNo" type="text" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="cmKey">인증 키 (cmKey)</label>
+        <input id="cmKey" name="cmKey" type="text" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="cmName">사용자 이름 (cmName)</label>
+        <input id="cmName" name="cmName" type="text" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="cmDNm">기관명 (cmDNm)</label>
+        <input id="cmDNm" name="cmDNm" type="text" autocomplete="off">
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="date-range">
+    <h2 id="date-range" class="sr-only">조회 기간 선택</h2>
+    <div class="form-grid">
+      <div class="field">
+        <label for="fromDate">FROM (등록일 시작)</label>
+        <input id="fromDate" name="fromDate" type="date">
+      </div>
+      <div class="field">
+        <label for="toDate">TO (등록일 종료)</label>
+        <input id="toDate" name="toDate" type="date">
+      </div>
+    </div>
+    <div class="range-buttons" role="group" aria-label="빠른 기간 선택">
+      <button type="button" class="secondary" data-range="1">1개월</button>
+      <button type="button" class="secondary" data-range="3">3개월</button>
+      <button type="button" class="secondary" data-range="6">6개월</button>
+      <button type="button" class="secondary" data-range="12">1년</button>
+    </div>
+  </section>
+
+  <section aria-labelledby="actions-section">
+    <h2 id="actions-section" class="sr-only">동작</h2>
+    <div class="toggle-row">
+      <label for="mobileModeToggle">
+        <input type="checkbox" id="mobileModeToggle">
+        모바일 모드 강제
+      </label>
+      <span id="mobileHint" aria-live="polite"></span>
+    </div>
+    <div class="actions">
+      <button type="button" id="openUrlBtn" class="secondary">Open Login</button>
+      <button type="button" id="downloadBtn">Download Excel</button>
+      <button type="button" id="readExcelBtn" class="secondary">엑셀파일읽기</button>
+      <button type="button" id="copyUrlBtn" class="secondary">Copy Login URL</button>
+    </div>
+    <div id="statusMessage" class="status" role="status" aria-live="polite"></div>
+  </section>
+
+  <section class="preview-card" aria-label="Excel preview">
+    <h2 style="margin:0;font-size:1.1rem;">엑셀 미리보기</h2>
+    <div id="excelPreview" class="excel-preview" tabindex="0">
+      <p id="excelPreviewStatus" class="preview-status">엑셀 파일을 선택하면 여기에서 첫 번째 시트 내용을 확인할 수 있습니다.</p>
+      <div id="excelPreviewTable" class="excel-preview-table"></div>
+    </div>
+  </section>
+</main>
+
+<input type="file" id="excelInput" accept=".xls,.xlsx,.xlsm,.csv,.txt,.html" class="sr-only" aria-hidden="true" tabindex="-1" hidden>
+
+<script>
+(() => {
+  "use strict";
+
+  const STORAGE_KEY = "scrp2.state.v1";
+  const LEGACY_STORAGE_KEY = "scrp1.state.v1";
+  const loginInputs = ["cmInstCd", "cmUserNo", "cmKey", "cmName", "cmDNm"];
+  const fixedLoginParams = {
+    cmAutoLoginYn: "Y",
+    cmUrl: "/re/RECOM01R0",
+    cmEncoding: "UTF-8"
+  };
+  const FROM_INPUT = document.getElementById("fromDate");
+  const TO_INPUT = document.getElementById("toDate");
+  const STATUS_EL = document.getElementById("statusMessage");
+  const OPEN_BTN = document.getElementById("openUrlBtn");
+  const DOWNLOAD_BTN = document.getElementById("downloadBtn");
+  const READ_EXCEL_BTN = document.getElementById("readExcelBtn");
+  const COPY_BTN = document.getElementById("copyUrlBtn");
+  const MOBILE_TOGGLE = document.getElementById("mobileModeToggle");
+  const MOBILE_HINT = document.getElementById("mobileHint");
+  const EXCEL_INPUT = document.getElementById("excelInput");
+  const PREVIEW_STATUS = document.getElementById("excelPreviewStatus");
+  const PREVIEW_TABLE = document.getElementById("excelPreviewTable");
+  const QUICK_BUTTONS = document.querySelectorAll("[data-range]");
+  const LOGIN_FRAME_ID = "scrp2LoginFrame";
+  let loginFrame = null;
+  let loginTimeoutHandle = null;
+  const MOBILE_REGEX = /iPhone|iPad|iPod|Android/i;
+  const isMobileDevice = MOBILE_REGEX.test(navigator.userAgent || "");
+
+  function isMobileMode() {
+    return MOBILE_TOGGLE.checked || isMobileDevice;
+  }
+
+  function getSeoulTodayString() {
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    });
+    return formatter.format(new Date());
+  }
+
+  function setDefaultDatesIfEmpty() {
+    const today = getSeoulTodayString();
+    if (!FROM_INPUT.value) FROM_INPUT.value = today;
+    if (!TO_INPUT.value) TO_INPUT.value = today;
+  }
+
+  function setQuickRange(months) {
+    const todayStr = getSeoulTodayString();
+    const [y, m, d] = todayStr.split("-").map(Number);
+    const startDate = new Date(y, m - 1, d);
+    startDate.setMonth(startDate.getMonth() - months);
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    });
+    FROM_INPUT.value = formatter.format(startDate);
+    TO_INPUT.value = todayStr;
+  }
+
+  function buildLoginURL(needValidation = false) {
+    const params = new URLSearchParams();
+    loginInputs.forEach(key => {
+      const value = (document.getElementById(key).value || "").trim();
+      if (needValidation && (key === "cmInstCd" || key === "cmUserNo" || key === "cmKey") && !value) {
+        showStatus(`필수 항목(${key})을 입력하세요.`, "error");
+        throw new Error("필수 입력 누락");
+      }
+      if (value) params.set(key, value);
+    });
+    Object.entries(fixedLoginParams).forEach(([key, value]) => params.set(key, value));
+    return `https://www.realtop.co.kr/cm/CMMBR01C2.do?${params.toString()}`;
+  }
+
+  function buildExcelURL(from, to) {
+    const params = new URLSearchParams({
+      cmRowCountPerPage: "20",
+      frmName: "frmRERET02S0BonNo",
+      cmPageNo: "1",
+      readChkRettNo: "",
+      readChkBksNo: "",
+      readChkPnuCd: "",
+      readChkReadMngNo: "",
+      stDt: from,
+      edDt: to,
+      sido: "",
+      dongRi: "",
+      san: "",
+      bonNo: "",
+      subNo: "",
+      luCmChk: "3",
+      cmMenuId: "6700000002",
+      _t: String(Date.now())
+    });
+    return `https://www.realtop.co.kr/re/RERET02S0.excel?${params.toString()}`;
+  }
+
+  function showStatus(message, kind = "") {
+    STATUS_EL.textContent = message;
+    STATUS_EL.className = `status ${kind}`;
+  }
+
+  function ensureLoginFrame() {
+    if (loginFrame && document.body.contains(loginFrame)) {
+      return loginFrame;
+    }
+    const existing = document.getElementById(LOGIN_FRAME_ID);
+    loginFrame = existing || document.createElement("iframe");
+    if (!existing) {
+      loginFrame.id = LOGIN_FRAME_ID;
+      loginFrame.title = "Realtop login session frame";
+      loginFrame.setAttribute("aria-hidden", "true");
+      loginFrame.style.cssText = "width:1px;height:1px;border:0;position:absolute;top:-9999px;left:-9999px;clip:rect(0,0,0,0);";
+      document.body.appendChild(loginFrame);
+    }
+    return loginFrame;
+  }
+
+  function downloadExcelSameTab(url) {
+    const form = document.createElement("form");
+    form.method = "GET";
+    form.action = "https://www.realtop.co.kr/re/RERET02S0.excel";
+    form.target = "_self";
+    const query = new URL(url).searchParams;
+    query.forEach((value, key) => {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = key;
+      input.value = value;
+      form.appendChild(input);
+    });
+    document.body.appendChild(form);
+    form.submit();
+    setTimeout(() => form.remove(), 0);
+  }
+
+  function saveState() {
+    const payload = loginInputs.reduce((acc, key) => {
+      acc[key] = (document.getElementById(key).value || "").trim();
+      return acc;
+    }, {});
+    payload.fromDate = FROM_INPUT.value;
+    payload.toDate = TO_INPUT.value;
+    payload.mobileMode = MOBILE_TOGGLE.checked;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch (err) {
+      console.warn("Failed to save state", err);
+    }
+  }
+
+  function loadState() {
+    let data = null;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        data = JSON.parse(raw);
+      } else {
+        const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
+        if (legacyRaw) {
+          data = JSON.parse(legacyRaw);
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to load state", err);
+    }
+    if (!data || typeof data !== "object") return;
+    loginInputs.forEach(key => {
+      if (typeof data[key] === "string") {
+        const input = document.getElementById(key);
+        if (input) input.value = data[key];
+      }
+    });
+    if (data.fromDate) FROM_INPUT.value = data.fromDate;
+    if (data.toDate) TO_INPUT.value = data.toDate;
+    if (typeof data.mobileMode === "boolean") {
+      MOBILE_TOGGLE.checked = data.mobileMode;
+    }
+    saveState();
+  }
+
+  function highlightMobileMode() {
+    MOBILE_HINT.textContent = isMobileMode()
+      ? "모바일 모드: 동일 탭에서 진행합니다."
+      : "데스크톱 모드: 백그라운드 로그인 사용.";
+  }
+
+  QUICK_BUTTONS.forEach(btn => btn.addEventListener("click", () => {
+    const months = Number(btn.dataset.range);
+    setQuickRange(months);
+    saveState();
+    showStatus(`${months}개월 범위를 적용했습니다.`, "success");
+  }));
+
+  loginInputs.concat(["fromDate", "toDate"]).forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener("input", () => {
+      saveState();
+    });
+  });
+
+  MOBILE_TOGGLE.addEventListener("change", () => {
+    highlightMobileMode();
+    saveState();
+  });
+
+  OPEN_BTN.addEventListener("click", () => {
+    let url;
+    try {
+      url = buildLoginURL(true);
+    } catch {
+      return;
+    }
+    if (isMobileMode()) {
+      showStatus("로그인 화면으로 이동합니다...", "");
+      window.location.href = url;
+      return;
+    }
+    const frame = ensureLoginFrame();
+    if (loginTimeoutHandle) {
+      clearTimeout(loginTimeoutHandle);
+      loginTimeoutHandle = null;
+    }
+    frame.onload = () => {
+      if (loginTimeoutHandle) {
+        clearTimeout(loginTimeoutHandle);
+        loginTimeoutHandle = null;
+      }
+      showStatus("로그인 세션을 백그라운드에서 갱신했습니다.", "success");
+    };
+    frame.onerror = () => {
+      if (loginTimeoutHandle) {
+        clearTimeout(loginTimeoutHandle);
+        loginTimeoutHandle = null;
+      }
+      showStatus("로그인 호출에 실패했습니다. 새 탭에서 시도하세요.", "error");
+    };
+    frame.src = url;
+    showStatus("로그인 준비 중…", "");
+    loginTimeoutHandle = setTimeout(() => {
+      showStatus("페이지가 차단된 것 같습니다. 새 탭에서 직접 열어 확인해주세요.", "error");
+    }, 8000);
+  });
+
+  DOWNLOAD_BTN.addEventListener("click", () => {
+    const from = FROM_INPUT.value;
+    const to = TO_INPUT.value;
+    if (!from || !to) {
+      showStatus("FROM과 TO 날짜를 모두 입력하세요.", "error");
+      return;
+    }
+    let url;
+    try {
+      url = buildExcelURL(from, to);
+    } catch (err) {
+      showStatus("다운로드 URL 생성 실패.", "error");
+      return;
+    }
+    showStatus("다운로드 요청을 준비합니다...", "");
+    downloadExcelSameTab(url);
+    showStatus("다운로드를 요청했습니다.", "success");
+  });
+
+  READ_EXCEL_BTN.addEventListener("click", () => {
+    if (!EXCEL_INPUT) return;
+    EXCEL_INPUT.value = "";
+    EXCEL_INPUT.click();
+  });
+
+  EXCEL_INPUT.addEventListener("change", event => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    handleExcelFile(file);
+  });
+
+  COPY_BTN.addEventListener("click", async () => {
+    let url;
+    try {
+      url = buildLoginURL(true);
+    } catch {
+      return;
+    }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = url;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      showStatus("로그인 URL을 클립보드에 복사했습니다.", "success");
+    } catch (err) {
+      showStatus("복사에 실패했습니다. 수동으로 복사하세요.", "error");
+    }
+  });
+
+  function handleExcelFile(file) {
+    if (!PREVIEW_STATUS || !PREVIEW_TABLE) return;
+    const name = file.name || "선택한 파일";
+    const extension = (name.split(".").pop() || "").toLowerCase();
+    const unsupported = ["xlsx", "xlsm", "xltx", "xltm"];
+    clearExcelPreview();
+    if (unsupported.includes(extension)) {
+      updatePreviewMessage("xlsx 형식은 지원하지 않습니다. .xls 또는 .csv 파일을 선택하세요.", "error");
+      return;
+    }
+    updatePreviewMessage(`'${name}' 파일을 읽는 중입니다...`, "");
+    const reader = new FileReader();
+    reader.onerror = () => {
+      updatePreviewMessage("파일을 읽는 데 실패했습니다.", "error");
+    };
+    reader.onload = () => {
+      let text = "";
+      try {
+        const result = reader.result;
+        if (typeof result === "string") {
+          text = result;
+        } else if (result instanceof ArrayBuffer) {
+          text = decodeBuffer(result);
+        }
+      } catch (err) {
+        console.error(err);
+        updatePreviewMessage("파일 해석 중 오류가 발생했습니다.", "error");
+        return;
+      }
+      if (!text || !text.trim()) {
+        updatePreviewMessage("파일에서 표시할 데이터를 찾지 못했습니다.", "error");
+        return;
+      }
+      try {
+        if (extension === "csv" || extension === "txt") {
+          renderCsvPreview(text);
+          updatePreviewMessage(`'${name}' CSV 내용을 표시했습니다.`, "success");
+        } else {
+          renderHtmlTablePreview(text);
+          updatePreviewMessage(`'${name}' 첫 번째 시트를 표시했습니다.`, "success");
+        }
+      } catch (err) {
+        console.error(err);
+        updatePreviewMessage("파일을 해석하지 못했습니다. .xls(HTML) 또는 .csv 파일인지 확인하세요.", "error");
+      }
+    };
+    if (extension === "csv" || extension === "txt") {
+      reader.readAsText(file);
+    } else {
+      reader.readAsArrayBuffer(file);
+    }
+  }
+
+  function decodeBuffer(buffer) {
+    if (typeof TextDecoder === "undefined") {
+      return "";
+    }
+    try {
+      const utf8 = new TextDecoder("utf-8", { fatal: false }).decode(buffer);
+      if (!utf8.includes("�")) {
+        return utf8;
+      }
+      try {
+        return new TextDecoder("euc-kr", { fatal: false }).decode(buffer);
+      } catch (err) {
+        return utf8;
+      }
+    } catch (err) {
+      try {
+        return new TextDecoder("euc-kr", { fatal: false }).decode(buffer);
+      } catch (error) {
+        return "";
+      }
+    }
+  }
+
+  function clearExcelPreview() {
+    if (PREVIEW_TABLE) {
+      PREVIEW_TABLE.innerHTML = "";
+    }
+  }
+
+  function updatePreviewMessage(message, kind = "") {
+    if (!PREVIEW_STATUS) return;
+    PREVIEW_STATUS.textContent = message;
+    PREVIEW_STATUS.className = "preview-status" + (kind ? ` preview-${kind}` : "");
+  }
+
+  function renderHtmlTablePreview(content) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(content, "text/html");
+    const originalTable = doc.querySelector("table");
+    if (!originalTable) {
+      throw new Error("표를 찾지 못했습니다.");
+    }
+    const cleanTable = document.createElement("table");
+    Array.from(originalTable.rows || []).forEach(row => {
+      const newRow = document.createElement("tr");
+      Array.from(row.cells || []).forEach(cell => {
+        const tag = cell.tagName && cell.tagName.toLowerCase() === "th" ? "th" : "td";
+        const newCell = document.createElement(tag);
+        newCell.textContent = (cell.textContent || "").trim();
+        if (cell.colSpan && cell.colSpan > 1) newCell.colSpan = cell.colSpan;
+        if (cell.rowSpan && cell.rowSpan > 1) newCell.rowSpan = cell.rowSpan;
+        newRow.appendChild(newCell);
+      });
+      if (newRow.children.length) {
+        cleanTable.appendChild(newRow);
+      }
+    });
+    PREVIEW_TABLE.innerHTML = "";
+    PREVIEW_TABLE.appendChild(cleanTable);
+  }
+
+  function renderCsvPreview(text) {
+    const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
+    if (!lines.length) throw new Error("CSV 데이터가 비어 있습니다.");
+    const delimiter = lines[0].includes('\t') && !lines[0].includes(',') ? '\t' : ',';
+    const rows = lines.map(line => parseCsvLine(line, delimiter));
+    const table = createTableFromRows(rows);
+    PREVIEW_TABLE.innerHTML = "";
+    PREVIEW_TABLE.appendChild(table);
+  }
+
+  function parseCsvLine(line, delimiter) {
+    const result = [];
+    let current = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i += 1) {
+      const char = line[i];
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i += 1;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (!inQuotes && char === delimiter) {
+        result.push(current.trim());
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  }
+
+  function createTableFromRows(rows) {
+    const table = document.createElement("table");
+    const tbody = document.createElement("tbody");
+    rows.forEach((cells, index) => {
+      const tr = document.createElement("tr");
+      cells.forEach(cell => {
+        const cellTag = index === 0 ? "th" : "td";
+        const td = document.createElement(cellTag);
+        td.textContent = cell;
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    return table;
+  }
+
+  loadState();
+  setDefaultDatesIfEmpty();
+  highlightMobileMode();
+  saveState();
+})();
+</script>
+</body>
+</html>
