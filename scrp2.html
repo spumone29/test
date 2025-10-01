@@ -54,7 +54,7 @@ header p {
   gap: 16px;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
-.field {
+ .field {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -218,24 +218,12 @@ button.secondary:hover {
     <h2 id="login-fields" class="sr-only">로그인 파라미터</h2>
     <div class="form-grid">
       <div class="field">
-        <label for="cmInstCd">기관 코드 (cmInstCd)</label>
-        <input id="cmInstCd" name="cmInstCd" type="text" autocomplete="off">
-      </div>
-      <div class="field">
         <label for="cmUserNo">사용자 번호 (cmUserNo)</label>
         <input id="cmUserNo" name="cmUserNo" type="text" autocomplete="off">
       </div>
       <div class="field">
         <label for="cmKey">인증 키 (cmKey)</label>
         <input id="cmKey" name="cmKey" type="text" autocomplete="off">
-      </div>
-      <div class="field">
-        <label for="cmName">사용자 이름 (cmName)</label>
-        <input id="cmName" name="cmName" type="text" autocomplete="off">
-      </div>
-      <div class="field">
-        <label for="cmDNm">기관명 (cmDNm)</label>
-        <input id="cmDNm" name="cmDNm" type="text" autocomplete="off">
       </div>
     </div>
   </section>
@@ -295,8 +283,11 @@ button.secondary:hover {
 
   const STORAGE_KEY = "scrp2.state.v1";
   const LEGACY_STORAGE_KEY = "scrp1.state.v1";
-  const loginInputs = ["cmInstCd", "cmUserNo", "cmKey", "cmName", "cmDNm"];
+  const loginInputs = ["cmUserNo", "cmKey"];
   const fixedLoginParams = {
+    cmInstCd: "E003",
+    cmName: "조성현",
+    cmDNm: "디지털혁신부",
     cmAutoLoginYn: "Y",
     cmUrl: "/re/RECOM01R0",
     cmEncoding: "UTF-8"
@@ -359,7 +350,7 @@ button.secondary:hover {
     const params = new URLSearchParams();
     loginInputs.forEach(key => {
       const value = (document.getElementById(key).value || "").trim();
-      if (needValidation && (key === "cmInstCd" || key === "cmUserNo" || key === "cmKey") && !value) {
+      if (needValidation && !value) {
         showStatus(`필수 항목(${key})을 입력하세요.`, "error");
         throw new Error("필수 입력 누락");
       }
@@ -461,7 +452,10 @@ button.secondary:hover {
     } catch (err) {
       console.warn("Failed to load state", err);
     }
-    if (!data || typeof data !== "object") return;
+    if (!data || typeof data !== "object") {
+      setAdvancedVisible(false);
+      return;
+    }
     loginInputs.forEach(key => {
       if (typeof data[key] === "string") {
         const input = document.getElementById(key);
@@ -501,43 +495,43 @@ button.secondary:hover {
     saveState();
   });
 
-  OPEN_BTN.addEventListener("click", () => {
-    let url;
-    try {
-      url = buildLoginURL(true);
-    } catch {
-      return;
-    }
-    if (isMobileMode()) {
-      showStatus("로그인 화면으로 이동합니다...", "");
-      window.location.href = url;
-      return;
-    }
-    const frame = ensureLoginFrame();
+OPEN_BTN.addEventListener("click", () => {
+  let url;
+  try {
+    url = buildLoginURL(true);
+  } catch {
+    return;
+  }
+  if (isMobileMode()) {
+    showStatus("로그인 화면으로 이동합니다...", "");
+    window.location.href = url;
+    return;
+  }
+  const frame = ensureLoginFrame();
+  if (loginTimeoutHandle) {
+    clearTimeout(loginTimeoutHandle);
+    loginTimeoutHandle = null;
+  }
+  frame.onload = () => {
     if (loginTimeoutHandle) {
       clearTimeout(loginTimeoutHandle);
       loginTimeoutHandle = null;
     }
-    frame.onload = () => {
-      if (loginTimeoutHandle) {
-        clearTimeout(loginTimeoutHandle);
-        loginTimeoutHandle = null;
-      }
-      showStatus("로그인 세션을 백그라운드에서 갱신했습니다.", "success");
-    };
-    frame.onerror = () => {
-      if (loginTimeoutHandle) {
-        clearTimeout(loginTimeoutHandle);
-        loginTimeoutHandle = null;
-      }
-      showStatus("로그인 호출에 실패했습니다. 새 탭에서 시도하세요.", "error");
-    };
-    frame.src = url;
-    showStatus("로그인 준비 중…", "");
-    loginTimeoutHandle = setTimeout(() => {
-      showStatus("페이지가 차단된 것 같습니다. 새 탭에서 직접 열어 확인해주세요.", "error");
-    }, 8000);
-  });
+    showStatus("로그인 세션을 백그라운드에서 갱신했습니다.", "success");
+  };
+  frame.onerror = () => {
+    if (loginTimeoutHandle) {
+      clearTimeout(loginTimeoutHandle);
+      loginTimeoutHandle = null;
+    }
+    showStatus("로그인 호출에 실패했습니다. 새 탭에서 시도하세요.", "error");
+  };
+  frame.src = url;
+  showStatus("로그인 준비 중…", "");
+  loginTimeoutHandle = setTimeout(() => {
+    showStatus("페이지가 차단된 것 같습니다. 새 탭에서 직접 열어 확인해주세요.", "error");
+  }, 8000);
+});
 
   DOWNLOAD_BTN.addEventListener("click", () => {
     const from = FROM_INPUT.value;
