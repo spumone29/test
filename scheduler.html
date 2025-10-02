@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Offline Scheduler</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --fg: #1f2933;
+  --muted: #5d6b7c;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --border: #d8dee6;
+  --shadow: 0 18px 32px rgba(15, 23, 42, 0.12);
+  --today: #f6f9ff;
+  --selected: #e9f1ff;
+  --done: #94a3b8;
+  --danger: #dc2626;
+  --success: #16a34a;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Segoe UI", "Roboto", sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  padding: clamp(16px, 4vw, 36px);
+  display: flex;
+  justify-content: center;
+}
+.app-shell {
+  width: min(1200px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+}
+header h1 {
+  margin: 0;
+  font-size: clamp(1.4rem, 2.4vw, 2rem);
+}
+.nav-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 14px;
+  background: #fff;
+  color: var(--fg);
+  transition: background 0.12s ease, box-shadow 0.12s ease, border 0.12s;
+}
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+button.primary:hover {
+  background: var(--accent-hover);
+}
+button.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+button:hover:not(:disabled) {
+  box-shadow: 0 10px 18px rgba(37, 99, 235, 0.18);
+}
+.controls-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 16px;
+  box-shadow: var(--shadow);
+}
+.controls-bar label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.controls-bar input[type="search"] {
+  font: inherit;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: clamp(180px, 24vw, 260px);
+}
+.main-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+}
+.calendar-card,
+.day-card,
+.results-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: clamp(16px, 3vw, 22px);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.calendar-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-align: center;
+}
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+.day-cell {
+  position: relative;
+  min-height: clamp(120px, 16vw, 150px);
+  padding: 10px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  outline: none;
+}
+.day-cell:hover,
+.day-cell:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+.day-cell.other-month {
+  opacity: 0.5;
+}
+.day-cell.today {
+  background: var(--today);
+}
+.day-cell.selected {
+  background: var(--selected);
+  border-color: var(--accent);
+}
+.day-number {
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.badge {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+}
+.day-snippet {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+}
+.day-snippet span {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.day-snippet span.done {
+  text-decoration: line-through;
+  color: var(--done);
+  background: rgba(148, 163, 184, 0.14);
+}
+.day-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.day-panel-header h2 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+.day-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+#taskForm {
+  display: flex;
+  gap: 8px;
+}
+#taskForm input {
+  flex: 1 1 auto;
+  padding: 8px 12px;
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+#dayTaskList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: clamp(220px, 30vh, 320px);
+  overflow-y: auto;
+}
+.task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+}
+.task-item.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+.task-item.done .task-text {
+  text-decoration: line-through;
+  color: var(--done);
+}
+.task-text {
+  flex: 1 1 auto;
+  word-break: break-word;
+}
+.task-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.task-actions button {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+}
+.search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: clamp(200px, 28vh, 240px);
+  overflow-y: auto;
+}
+.search-result {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+}
+.search-result span {
+  max-width: 70%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.search-result .meta {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+@media (max-width: 1024px) {
+  .main-grid {
+    grid-template-columns: 1fr;
+  }
+  #taskForm {
+    flex-direction: column;
+  }
+  #taskForm button {
+    width: 100%;
+  }
+}
+@media (max-width: 640px) {
+  .day-cell {
+    min-height: 110px;
+  }
+  .controls-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .controls-bar label {
+    width: 100%;
+  }
+  .controls-bar input[type="search"],
+  .controls-bar button {
+    width: 100%;
+  }
+}
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <header>
+    <h1>Offline Scheduler</h1>
+    <div class="nav-controls" role="group" aria-label="Month navigation">
+      <button type="button" id="prevMonthBtn">Prev</button>
+      <button type="button" id="todayBtn">Today</button>
+      <button type="button" id="nextMonthBtn">Next</button>
+    </div>
+  </header>
+
+  <div class="controls-bar">
+    <div aria-live="polite" id="monthLabel" class="month-label" role="heading" aria-level="2"></div>
+    <label for="searchInput">Search tasks
+      <input type="search" id="searchInput" placeholder="Search text" aria-label="Search tasks">
+    </label>
+    <button type="button" class="primary" id="importBtn">Import .txt</button>
+    <button type="button" class="primary" id="exportBtn">Export .txt</button>
+    <button type="button" id="fsOpenBtn" hidden>Open file</button>
+    <button type="button" id="fsSaveBtn" hidden>Save to file</button>
+    <button type="button" class="danger" id="clearBtn">Clear All</button>
+  </div>
+
+  <div class="main-grid">
+    <section class="calendar-card" aria-label="Calendar">
+      <div class="calendar-shell">
+        <div class="weekdays" aria-hidden="true">
+          <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+        </div>
+        <div class="calendar-grid" id="calendarGrid" role="grid" aria-label="Monthly calendar"></div>
+      </div>
+    </section>
+    <section class="day-card" id="dayPanel" role="region" aria-live="polite" aria-label="Day editor">
+      <div class="day-panel-header">
+        <h2 id="dayTitle">Select a day</h2>
+        <span class="badge" id="dayTaskCount">0</span>
+      </div>
+      <div class="day-panel-body">
+        <form id="taskForm" autocomplete="off">
+          <label class="sr-only" for="newTaskInput">Task description</label>
+          <input id="newTaskInput" name="newTask" type="text" placeholder="New task" aria-label="New task">
+          <button type="submit" class="primary" id="addTaskBtn">Add Task</button>
+        </form>
+        <ul id="dayTaskList" tabindex="0" aria-label="Tasks for selected day"></ul>
+        <div class="panel-actions">
+          <button type="button" id="undoBtn" disabled>Undo Last Delete</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="results-card" aria-label="Search results">
+    <h2 style="margin:0;font-size:1.1rem;">Search Results</h2>
+    <ul class="search-results" id="searchResults" aria-live="polite"></ul>
+  </section>
+</div>
+
+<input type="file" accept=".txt,application/json,text/plain" id="fileInput" class="sr-only" aria-hidden="true">
+
+<script>
+(() => {
+  "use strict";
+
+  const STORAGE_KEY = "offlineScheduler.items.v1";
+  const VERSION = 1;
+  const TODAY = formatDate(new Date());
+  const locale = navigator.language || "en-US";
+  const monthFormatter = new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" });
+  const dayFormatter = new Intl.DateTimeFormat(locale, { weekday: "long", month: "long", day: "numeric" });
+
+  const monthLabelEl = document.getElementById("monthLabel");
+  const calendarGridEl = document.getElementById("calendarGrid");
+  const dayTitleEl = document.getElementById("dayTitle");
+  const dayTaskCountEl = document.getElementById("dayTaskCount");
+  const dayTaskListEl = document.getElementById("dayTaskList");
+  const newTaskInputEl = document.getElementById("newTaskInput");
+  const undoBtn = document.getElementById("undoBtn");
+  const searchInputEl = document.getElementById("searchInput");
+  const searchResultsEl = document.getElementById("searchResults");
+  const fileInputEl = document.getElementById("fileInput");
+  const fsOpenBtn = document.getElementById("fsOpenBtn");
+  const fsSaveBtn = document.getElementById("fsSaveBtn");
+
+  const state = {
+    tasks: [],
+    currentMonth: startOfMonth(new Date()),
+    selectedDate: TODAY,
+    searchTerm: "",
+    undoStack: [],
+    selectedTaskId: null,
+    focusCalendarAfterRender: false,
+    fileHandle: null
+  };
+
+  function startOfMonth(date) {
+    return new Date(date.getFullYear(), date.getMonth(), 1);
+  }
+
+  function formatDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  function parseDate(iso) {
+    const [y, m, d] = iso.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  }
+
+  function escapeHTML(value) {
+    const div = document.createElement("div");
+    div.textContent = value;
+    return div.innerHTML;
+  }
+
+  function uuid() {
+    if (typeof crypto !== "undefined" && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return "xxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      const v = c === "x" ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        state.tasks = sampleData();
+        save();
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object" || !parsed.meta || parsed.meta.version !== VERSION || !Array.isArray(parsed.items)) {
+        console.warn("Stored data invalid, resetting.");
+        state.tasks = sampleData();
+        save();
+        return;
+      }
+      state.tasks = parsed.items.map(normalizeTask).filter(Boolean);
+      ensureOrderIntegrity();
+    } catch (err) {
+      console.warn("Failed to load data", err);
+      state.tasks = sampleData();
+      save();
+    }
+  }
+
+  function save() {
+    const payload = {
+      meta: { version: VERSION },
+      items: state.tasks.map(task => ({
+        id: task.id,
+        date: task.date,
+        text: task.text,
+        done: task.done,
+        order: task.order
+      }))
+    };
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch (err) {
+      console.warn("LocalStorage save failed", err);
+    }
+  }
+
+  function sampleData() {
+    const today = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(today.getDate() + 1);
+    const items = [
+      { id: uuid(), date: formatDate(today), text: "Review project roadmap", done: false, order: 0 },
+      { id: uuid(), date: formatDate(today), text: "Call with finance", done: true, order: 1 },
+      { id: uuid(), date: formatDate(tomorrow), text: "Write status update", done: false, order: 0 }
+    ];
+    return items;
+  }
+
+  function normalizeTask(item) {
+    if (!item || typeof item !== "object") return null;
+    if (typeof item.id !== "string" || typeof item.date !== "string" || typeof item.text !== "string") return null;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(item.date)) return null;
+    const done = Boolean(item.done);
+    const order = Number.isFinite(item.order) ? item.order : 0;
+    return { id: item.id, date: item.date, text: item.text, done, order };
+  }
+
+  function ensureOrderIntegrity() {
+    const grouped = groupByDate();
+    Object.keys(grouped).forEach(date => {
+      const sorted = grouped[date].sort((a, b) => a.order - b.order);
+      sorted.forEach((task, idx) => {
+        task.order = idx;
+      });
+    });
+  }
+
+  function groupByDate() {
+    return state.tasks.reduce((acc, task) => {
+      if (!acc[task.date]) acc[task.date] = [];
+      acc[task.date].push(task);
+      return acc;
+    }, {});
+  }
+
+  function getTasksForDate(date) {
+    return state.tasks.filter(task => task.date === date).sort((a, b) => a.order - b.order);
+  }
+
+  function setMonth(date) {
+    state.currentMonth = startOfMonth(date);
+    renderAll();
+  }
+
+  function selectDay(date, options = {}) {
+    state.selectedDate = date;
+    if (parseDate(date).getMonth() !== state.currentMonth.getMonth() || parseDate(date).getFullYear() !== state.currentMonth.getFullYear()) {
+      state.currentMonth = startOfMonth(parseDate(date));
+    }
+    renderAll();
+    if (options.focusCalendar) {
+      focusDayCell(date);
+    }
+    if (options.focusInput) {
+      newTaskInputEl.focus();
+    }
+  }
+
+  function focusDayCell(date) {
+    const cell = calendarGridEl.querySelector(`[data-date="${date}"]`);
+    if (cell) {
+      cell.focus();
+    }
+  }
+
+  function renderCalendar() {
+    calendarGridEl.innerHTML = "";
+    const current = state.currentMonth;
+    monthLabelEl.textContent = monthFormatter.format(current);
+
+    const firstDay = current.getDay();
+    const startDate = new Date(current.getFullYear(), current.getMonth(), 1 - firstDay);
+    const cells = 42; // 6 weeks
+
+    for (let i = 0; i < cells; i += 1) {
+      const cellDate = new Date(startDate);
+      cellDate.setDate(startDate.getDate() + i);
+      const dateStr = formatDate(cellDate);
+      const tasks = getTasksForDate(dateStr);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "day-cell";
+      button.setAttribute("role", "gridcell");
+      button.setAttribute("aria-label", `${dayFormatter.format(cellDate)} with ${tasks.length} tasks`);
+      button.dataset.date = dateStr;
+      button.dataset.index = String(i);
+
+      if (cellDate.getMonth() !== current.getMonth()) {
+        button.classList.add("other-month");
+      }
+      if (dateStr === TODAY) {
+        button.classList.add("today");
+      }
+      if (dateStr === state.selectedDate) {
+        button.classList.add("selected");
+        button.setAttribute("aria-selected", "true");
+      }
+
+      const number = document.createElement("div");
+      number.className = "day-number";
+      const numberSpan = document.createElement("span");
+      numberSpan.textContent = String(cellDate.getDate());
+      number.appendChild(numberSpan);
+
+      if (tasks.length) {
+        const badge = document.createElement("span");
+        badge.className = "badge";
+        badge.textContent = String(tasks.length);
+        number.appendChild(badge);
+      }
+      button.appendChild(number);
+
+      if (tasks.length) {
+        const snippet = document.createElement("div");
+        snippet.className = "day-snippet";
+        tasks.slice(0, 3).forEach(task => {
+          const span = document.createElement("span");
+          span.textContent = task.text;
+          if (task.done) span.classList.add("done");
+          snippet.appendChild(span);
+        });
+        if (tasks.length > 3) {
+          const more = document.createElement("span");
+          more.textContent = `+${tasks.length - 3} more`;
+          snippet.appendChild(more);
+        }
+        button.appendChild(snippet);
+      }
+
+      button.addEventListener("click", () => {
+        selectDay(dateStr, { focusInput: true });
+      });
+
+      button.addEventListener("dblclick", (event) => {
+        event.preventDefault();
+        quickAddTask(dateStr);
+      });
+
+      button.addEventListener("keydown", event => handleDayKeyNav(event, i));
+
+      calendarGridEl.appendChild(button);
+    }
+  }
+
+  function handleDayKeyNav(event, index) {
+    const { key } = event;
+    let targetIndex = null;
+    if (key === "ArrowRight") targetIndex = index + 1;
+    else if (key === "ArrowLeft") targetIndex = index - 1;
+    else if (key === "ArrowDown") targetIndex = index + 7;
+    else if (key === "ArrowUp") targetIndex = index - 7;
+    else if (key === "Enter") {
+      selectDay(event.currentTarget.dataset.date, { focusInput: true });
+      return;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    const cells = calendarGridEl.querySelectorAll(".day-cell");
+    if (targetIndex < 0 || targetIndex >= cells.length) {
+      return;
+    }
+    const target = cells[targetIndex];
+    if (target) {
+      selectDay(target.dataset.date, { focusCalendar: true });
+    }
+  }
+
+  function renderDayPanel() {
+    const date = state.selectedDate;
+    const tasks = getTasksForDate(date);
+    const dateObj = parseDate(date);
+    dayTitleEl.textContent = dayFormatter.format(dateObj);
+    dayTaskCountEl.textContent = String(tasks.length);
+
+    const previousSelection = state.selectedTaskId;
+    if (!tasks.some(task => task.id === previousSelection)) {
+      state.selectedTaskId = tasks.length ? tasks[0].id : null;
+    }
+
+    dayTaskListEl.innerHTML = "";
+    tasks.forEach(task => {
+      const li = document.createElement("li");
+      li.className = "task-item";
+      if (task.done) li.classList.add("done");
+      if (task.id === state.selectedTaskId) li.classList.add("selected");
+      li.tabIndex = 0;
+      li.dataset.taskId = task.id;
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = task.done;
+      checkbox.setAttribute("aria-label", `Mark task '${task.text}' as done`);
+      checkbox.addEventListener("change", () => toggleDone(task.id));
+      li.appendChild(checkbox);
+
+      const text = document.createElement("div");
+      text.className = "task-text";
+      text.textContent = task.text;
+      li.appendChild(text);
+
+      const actions = document.createElement("div");
+      actions.className = "task-actions";
+
+      const editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.textContent = "Edit";
+      editBtn.addEventListener("click", () => editTask(task.id));
+      actions.appendChild(editBtn);
+
+      const upBtn = document.createElement("button");
+      upBtn.type = "button";
+      upBtn.textContent = "Up";
+      upBtn.addEventListener("click", () => reorderTask(task.id, -1));
+      actions.appendChild(upBtn);
+
+      const downBtn = document.createElement("button");
+      downBtn.type = "button";
+      downBtn.textContent = "Down";
+      downBtn.addEventListener("click", () => reorderTask(task.id, 1));
+      actions.appendChild(downBtn);
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.textContent = "Delete";
+      deleteBtn.addEventListener("click", () => deleteTask(task.id));
+      actions.appendChild(deleteBtn);
+
+      li.appendChild(actions);
+
+      li.addEventListener("focus", () => {
+        state.selectedTaskId = task.id;
+        renderDayPanel();
+      });
+      li.addEventListener("click", () => {
+        state.selectedTaskId = task.id;
+        renderDayPanel();
+      });
+
+      dayTaskListEl.appendChild(li);
+    });
+
+    undoBtn.disabled = state.undoStack.length === 0;
+  }
+
+  function renderSearchResults() {
+    searchResultsEl.innerHTML = "";
+    const term = state.searchTerm.trim().toLowerCase();
+    const items = term ? state.tasks.filter(task => task.text.toLowerCase().includes(term)) : [];
+    if (!term) {
+      const li = document.createElement("li");
+      li.className = "search-result";
+      const span = document.createElement("span");
+      span.textContent = "Type in the search box to filter tasks.";
+      li.appendChild(span);
+      searchResultsEl.appendChild(li);
+      return;
+    }
+    if (!items.length) {
+      const li = document.createElement("li");
+      li.className = "search-result";
+      const span = document.createElement("span");
+      span.textContent = "No tasks match your search.";
+      li.appendChild(span);
+      searchResultsEl.appendChild(li);
+      return;
+    }
+    items.sort((a, b) => a.date.localeCompare(b.date));
+    items.forEach(task => {
+      const li = document.createElement("li");
+      li.className = "search-result";
+      const text = document.createElement("span");
+      text.textContent = task.text;
+      if (task.done) {
+        text.style.textDecoration = "line-through";
+        text.style.color = "var(--done)";
+      }
+      li.appendChild(text);
+
+      const meta = document.createElement("span");
+      meta.className = "meta";
+      meta.textContent = task.date;
+      li.appendChild(meta);
+
+      li.addEventListener("click", () => {
+        selectDay(task.date, { focusCalendar: true });
+        state.selectedTaskId = task.id;
+        renderDayPanel();
+      });
+
+      searchResultsEl.appendChild(li);
+    });
+  }
+
+  function addTask(date, text) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    const tasks = getTasksForDate(date);
+    const order = tasks.length ? tasks[tasks.length - 1].order + 1 : 0;
+    const task = { id: uuid(), date, text: trimmed, done: false, order };
+    state.tasks.push(task);
+    save();
+    renderAll();
+    state.selectedTaskId = task.id;
+    newTaskInputEl.value = "";
+    newTaskInputEl.focus();
+  }
+
+  function editTask(id) {
+    const task = state.tasks.find(item => item.id === id);
+    if (!task) return;
+    const next = prompt("Edit task", task.text);
+    if (next === null) return;
+    const trimmed = next.trim();
+    if (!trimmed) {
+      alert("Task cannot be empty.");
+      return;
+    }
+    task.text = trimmed;
+    save();
+    renderAll();
+  }
+
+  function toggleDone(id) {
+    const task = state.tasks.find(item => item.id === id);
+    if (!task) return;
+    task.done = !task.done;
+    save();
+    renderAll();
+  }
+
+  function deleteTask(id) {
+    const index = state.tasks.findIndex(item => item.id === id);
+    if (index === -1) return;
+    const [removed] = state.tasks.splice(index, 1);
+    state.undoStack.push({ task: { ...removed }, timestamp: Date.now() });
+    if (state.undoStack.length > 20) state.undoStack.shift();
+    save();
+    state.selectedTaskId = null;
+    renderAll();
+  }
+
+  function reorderTask(id, direction) {
+    const task = state.tasks.find(item => item.id === id);
+    if (!task) return;
+    const tasks = getTasksForDate(task.date);
+    const index = tasks.findIndex(item => item.id === id);
+    if (index === -1) return;
+    const swapIndex = index + direction;
+    if (swapIndex < 0 || swapIndex >= tasks.length) return;
+    const other = tasks[swapIndex];
+    const temp = task.order;
+    task.order = other.order;
+    other.order = temp;
+    save();
+    renderAll();
+    state.selectedTaskId = id;
+  }
+
+  function undo() {
+    const entry = state.undoStack.pop();
+    if (!entry) return;
+    const { task } = entry;
+    if (!task) return;
+    const tasks = getTasksForDate(task.date);
+    const order = tasks.length ? tasks[tasks.length - 1].order + 1 : 0;
+    state.tasks.push({ ...task, order });
+    save();
+    renderAll();
+    state.selectedTaskId = task.id;
+  }
+
+  function quickAddTask(date) {
+    const input = prompt(`Quick add task for ${date}`, "");
+    if (input && input.trim()) {
+      addTask(date, input);
+    }
+  }
+
+  function clearAll() {
+    if (!state.tasks.length) return;
+    const confirmed = confirm("This will remove all tasks. Continue?");
+    if (!confirmed) return;
+    state.tasks = [];
+    state.undoStack = [];
+    save();
+    renderAll();
+  }
+
+  function exportTxt() {
+    const payload = {
+      meta: { version: VERSION },
+      items: state.tasks.map(task => ({
+        id: task.id,
+        date: task.date,
+        text: task.text,
+        done: task.done,
+        order: task.order
+      }))
+    };
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob(["\ufeff" + json], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "scheduler.txt";
+    document.body.appendChild(anchor);
+    anchor.click();
+    setTimeout(() => {
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+    }, 0);
+  }
+
+  function handleImportedText(text) {
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch (err) {
+      alert("Import failed: invalid JSON.");
+      return false;
+    }
+    if (!parsed || typeof parsed !== "object" || !parsed.meta || parsed.meta.version !== VERSION || !Array.isArray(parsed.items)) {
+      alert("Import failed: invalid file structure.");
+      return false;
+    }
+    const incoming = parsed.items.map(normalizeTask).filter(Boolean);
+    const decision = confirm("Merge imported tasks with existing ones? Click Cancel to replace instead.");
+    if (decision) {
+      const existingIds = new Set(state.tasks.map(task => task.id));
+      incoming.forEach(task => {
+        if (existingIds.has(task.id)) {
+          const index = state.tasks.findIndex(item => item.id === task.id);
+          if (index !== -1) {
+            state.tasks[index] = task;
+          }
+        } else {
+          state.tasks.push(task);
+        }
+      });
+    } else {
+      state.tasks = incoming;
+    }
+    ensureOrderIntegrity();
+    save();
+    renderAll();
+    return true;
+  }
+
+  function importTxt() {
+    fileInputEl.value = "";
+    fileInputEl.click();
+  }
+
+  function setupFileSystemAccess() {
+    const supported = typeof window.showOpenFilePicker === "function" && typeof window.showSaveFilePicker === "function";
+    if (!supported) return;
+    fsOpenBtn.hidden = false;
+    fsSaveBtn.hidden = false;
+
+    fsOpenBtn.addEventListener("click", async () => {
+      try {
+        const [handle] = await window.showOpenFilePicker({
+          types: [{ description: "Scheduler Text", accept: { "text/plain": [".txt", ".json"] } }]
+        });
+        const file = await handle.getFile();
+        const text = await file.text();
+        const success = handleImportedText(text);
+        if (success) {
+          state.fileHandle = handle;
+        }
+      } catch (err) {
+        if (err && err.name !== "AbortError") {
+          console.warn("Open file failed", err);
+          alert("Unable to open file.");
+        }
+      }
+    });
+
+    fsSaveBtn.addEventListener("click", async () => {
+      try {
+        if (!state.fileHandle) {
+          state.fileHandle = await window.showSaveFilePicker({
+            suggestedName: "scheduler.txt",
+            types: [{ description: "Scheduler Text", accept: { "text/plain": [".txt"] } }]
+          });
+        }
+        const writable = await state.fileHandle.createWritable();
+        const payload = {
+          meta: { version: VERSION },
+          items: state.tasks.map(task => ({ id: task.id, date: task.date, text: task.text, done: task.done, order: task.order }))
+        };
+        await writable.write("\ufeff" + JSON.stringify(payload, null, 2));
+        await writable.close();
+        alert("Saved successfully.");
+      } catch (err) {
+        if (err && err.name !== "AbortError") {
+          console.warn("Save failed", err);
+          alert("Unable to save file.");
+        }
+      }
+    });
+  }
+
+  function renderAll() {
+    renderCalendar();
+    renderDayPanel();
+    renderSearchResults();
+    undoBtn.disabled = state.undoStack.length === 0;
+  }
+
+  document.getElementById("prevMonthBtn").addEventListener("click", () => {
+    const date = new Date(state.currentMonth);
+    date.setMonth(date.getMonth() - 1);
+    setMonth(date);
+  });
+
+  document.getElementById("nextMonthBtn").addEventListener("click", () => {
+    const date = new Date(state.currentMonth);
+    date.setMonth(date.getMonth() + 1);
+    setMonth(date);
+  });
+
+  document.getElementById("todayBtn").addEventListener("click", () => {
+    const today = new Date();
+    state.currentMonth = startOfMonth(today);
+    selectDay(formatDate(today), { focusCalendar: true });
+  });
+
+  document.getElementById("taskForm").addEventListener("submit", event => {
+    event.preventDefault();
+    addTask(state.selectedDate, newTaskInputEl.value);
+  });
+
+  dayTaskListEl.addEventListener("keydown", event => {
+    if (event.key === "Delete" && state.selectedTaskId) {
+      deleteTask(state.selectedTaskId);
+    }
+  });
+
+  undoBtn.addEventListener("click", undo);
+  document.getElementById("clearBtn").addEventListener("click", clearAll);
+  document.getElementById("exportBtn").addEventListener("click", exportTxt);
+  document.getElementById("importBtn").addEventListener("click", importTxt);
+
+  fileInputEl.addEventListener("change", event => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      handleImportedText(reader.result);
+    };
+    reader.onerror = () => alert("Failed to read file.");
+    reader.readAsText(file, "UTF-8");
+  });
+
+  searchInputEl.addEventListener("input", event => {
+    state.searchTerm = event.target.value;
+    renderSearchResults();
+  });
+
+  load();
+  setupFileSystemAccess();
+  selectDay(state.selectedDate);
+})();
+</script>
+</body>
+</html>
