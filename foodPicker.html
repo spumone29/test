@@ -1,0 +1,1173 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Food Picker</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f6f9;
+        --surface: #ffffff;
+        --surface-alt: #f1f5fb;
+        --text: #1f2933;
+        --muted: #64707d;
+        --border: #d6dde4;
+        --accent: #f97316;
+        --accent-strong: #ea580c;
+        --winner-shadow: 0 0 0 3px rgba(249, 115, 22, 0.25), 0 18px 36px rgba(249, 115, 22, 0.25);
+        --focus: 0 0 0 3px rgba(78, 156, 255, 0.45);
+        --tag-font: clamp(13px, 3.6vw, 18px);
+        --shadow: 0 16px 32px rgba(15, 23, 42, 0.14);
+      }
+
+      body[data-theme='dark'] {
+        color-scheme: dark;
+        --bg: #0f172a;
+        --surface: #1e293b;
+        --surface-alt: #16213a;
+        --text: #f1f5f9;
+        --muted: #94a3b8;
+        --border: #334155;
+        --accent: #fb923c;
+        --accent-strong: #f97316;
+        --winner-shadow: 0 0 0 3px rgba(251, 146, 60, 0.35), 0 18px 36px rgba(15, 23, 42, 0.7);
+        --focus: 0 0 0 3px rgba(94, 234, 212, 0.45);
+        --shadow: 0 16px 36px rgba(2, 6, 23, 0.65);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+      }
+
+      .app {
+        width: 100%;
+        max-width: 390px;
+        padding: 1rem;
+        display: grid;
+        gap: 1.2rem;
+      }
+
+      .app-header h1 {
+        margin: 0;
+        font-size: 1.8rem;
+      }
+
+      .app-header p {
+        margin: 0.4rem 0 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .stage-section {
+        display: grid;
+        gap: 0.8rem;
+      }
+
+      .stage-wrapper {
+        position: relative;
+        border-radius: 18px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        min-height: 338px;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+      }
+
+      .stage {
+        position: relative;
+        width: 100%;
+        height: 100%;
+      }
+
+      .tag {
+        position: absolute;
+        padding: 0.35rem 0.85rem;
+        border-radius: 999px;
+        background: var(--surface-alt);
+        color: var(--text);
+        font-weight: 600;
+        font-size: var(--tag-font);
+        pointer-events: none;
+        user-select: none;
+        box-shadow: 0 10px 18px rgba(15, 23, 42, 0.12);
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        transition: background 0.2s, color 0.2s, box-shadow 0.2s, opacity 0.2s;
+        will-change: transform;
+      }
+
+      body[data-theme='dark'] .tag {
+        box-shadow: 0 10px 20px rgba(15, 23, 42, 0.6);
+      }
+
+      .tag.winner {
+        background: var(--accent);
+        color: #fff;
+        box-shadow: var(--winner-shadow);
+        border-color: transparent;
+      }
+      .stage-placeholder {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 120px;
+        max-width: 45%;
+        transform: translate(-50%, -50%);
+        opacity: 0.6;
+        transition: opacity 0.2s ease, visibility 0.2s ease;
+        pointer-events: none;
+      }
+
+      .stage-placeholder.hidden {
+        opacity: 0;
+        visibility: hidden;
+      }
+
+      .tag.dimmed {
+        opacity: 0.28;
+      }
+
+      .confetti-layer {
+        pointer-events: none;
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+      }
+
+      .confetti-piece {
+        position: absolute;
+        top: -10%;
+        width: 8px;
+        height: 14px;
+        border-radius: 2px;
+        opacity: 0;
+        transform: translate3d(0, -20px, 0);
+        animation: confetti-fall 1.2s ease-out forwards;
+      }
+
+      @keyframes confetti-fall {
+        0% {
+          transform: translate3d(0, -20px, 0) rotate(0deg);
+          opacity: 0;
+        }
+        20% {
+          opacity: 1;
+        }
+        100% {
+          transform: translate3d(var(--x, 0px), 120%, 0) rotate(240deg);
+          opacity: 0;
+        }
+      }
+
+      .result-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 0.9rem 1rem;
+        display: grid;
+        gap: 0.35rem;
+        min-height: 90px;
+        box-shadow: var(--shadow);
+      }
+
+      .result-card h3 {
+        margin: 0;
+        font-size: 1.15rem;
+      }
+
+      .result-card p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.4;
+      }
+
+      .result-meta {
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+
+      .button-bar {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.45rem;
+      }
+
+      button {
+        font: inherit;
+        padding: 0.7rem 1rem;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: var(--surface-alt);
+        color: var(--text);
+        cursor: pointer;
+        min-height: 44px;
+        transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
+      }
+
+      button.primary {
+        background: var(--accent);
+        border-color: transparent;
+        color: #fff;
+      }
+
+      button:hover:not(:disabled) {
+        transform: translateY(-1px);
+      }
+
+      button:active:not(:disabled) {
+        transform: translateY(0);
+      }
+
+      button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .history-section {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 0.9rem 1rem;
+        box-shadow: var(--shadow);
+      }
+
+      .history-section h2 {
+        margin: 0 0 0.5rem;
+        font-size: 1.05rem;
+      }
+
+      .history-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 0.45rem;
+        max-height: 180px;
+        overflow-y: auto;
+      }
+
+      .history-list li {
+        display: grid;
+        gap: 0.2rem;
+        padding: 0.5rem 0.6rem;
+        border-radius: 12px;
+        background: var(--surface-alt);
+        border: 1px solid var(--border);
+      }
+
+      .history-time {
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+
+      .history-name {
+        font-weight: 600;
+      }
+
+      .history-story {
+        font-size: 0.86rem;
+        color: var(--muted);
+      }
+
+      .history-list .placeholder {
+        text-align: center;
+        color: var(--muted);
+        padding: 0.9rem;
+        background: transparent;
+        border: none;
+      }
+
+      .list-details {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 0.7rem 1rem 0.95rem;
+        box-shadow: var(--shadow);
+      }
+
+      .list-details summary {
+        cursor: pointer;
+        font-weight: 600;
+        outline: none;
+      }
+
+      .list-details summary:focus-visible {
+        box-shadow: var(--focus);
+        border-radius: 12px;
+      }
+
+      .details-body {
+        margin-top: 0.75rem;
+        display: grid;
+        gap: 0.65rem;
+      }
+
+      .filter-label {
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+
+      #listFilter {
+        padding: 0.55rem 0.75rem;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--surface-alt);
+        color: var(--text);
+        font: inherit;
+      }
+
+      #listFilter:focus-visible {
+        outline: none;
+        box-shadow: var(--focus);
+      }
+
+      .table-wrapper {
+        overflow-x: auto;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--surface);
+      }
+
+      th,
+      td {
+        padding: 0.7rem 0.8rem;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+      }
+
+      tbody tr:last-child td {
+        border-bottom: none;
+      }
+
+      tbody tr.empty-row td {
+        text-align: center;
+        color: var(--muted);
+      }
+
+      .settings {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 1rem;
+        box-shadow: var(--shadow);
+        display: grid;
+        gap: 0.75rem;
+      }
+
+      .settings h2 {
+        margin: 0;
+        font-size: 1.05rem;
+      }
+
+      fieldset {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 0.75rem 0.9rem 0.8rem;
+        background: var(--surface-alt);
+      }
+
+      legend {
+        font-size: 0.85rem;
+        color: var(--muted);
+        padding: 0 0.35rem;
+      }
+
+      .radio-group {
+        display: flex;
+        gap: 0.75rem;
+      }
+
+      .radio-group label {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-weight: 600;
+      }
+
+      .toggle,
+      .range-control {
+        display: grid;
+        gap: 0.4rem;
+        background: var(--surface-alt);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 0.75rem 0.9rem;
+      }
+
+      .toggle {
+        grid-template-columns: auto 1fr;
+        align-items: center;
+      }
+
+      .toggle input {
+        width: 20px;
+        height: 20px;
+      }
+
+      .range-control label {
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .range-control input[type='range'] {
+        width: 100%;
+        accent-color: var(--accent);
+      }
+
+      :focus-visible {
+        outline: none;
+        box-shadow: var(--focus);
+      }
+
+      @media (max-width: 390px) {
+        .app {
+          padding: 0.75rem;
+        }
+        .button-bar {
+          gap: 0.4rem;
+        }
+        .settings {
+          padding: 0.9rem;
+        }
+      }
+    </style>
+  </head>
+  <body data-theme="light">
+    <div class="app" id="appRoot">
+      <header class="app-header">
+        <h1>오늘 뭐 먹지?</h1>
+        <p>Trouble Choosing? It's Your Destiny!</p>
+      </header>
+
+      <section class="stage-section" aria-label="추천 애니메이션">
+        <div class="stage-wrapper">
+          <img src="img/icn-bank-shinhan.png" alt="신한은행 아이콘" class="stage-placeholder" id="stagePlaceholder" />
+          <div id="stage" class="stage" aria-hidden="true"></div>
+          <div id="confettiLayer" class="confetti-layer" aria-hidden="true"></div>
+        </div>
+        <div class="button-bar" aria-label="추천 제어">
+          <button type="button" id="toggleBtn" class="primary" aria-label="시작 또는 멈춤">시작/멈춤</button>
+          <button type="button" id="resetBtn" aria-label="리셋">리셋</button>
+        </div>
+        <div id="resultCard" class="result-card" tabindex="-1" aria-live="polite" role="status">
+          <p>아직 추천이 없습니다. [시작/멈춤]을 눌러보세요!</p>
+        </div>
+      </section>
+
+      <section class="history-section" aria-label="최근 추천 기록">
+        <h2>최근 추천</h2>
+        <ul id="historyList" class="history-list">
+          <li class="placeholder">기록이 없습니다.</li>
+        </ul>
+      </section>
+
+      <details id="listDetails" class="list-details">
+        <summary id="listSummary">맛집 리스트 보기 (0개)</summary>
+        <div class="details-body">
+          <label for="listFilter" class="filter-label">검색</label>
+          <input id="listFilter" type="search" placeholder="이름 또는 설명 검색" aria-label="맛집 검색" />
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">이름</th>
+                  <th scope="col">설명</th>
+                </tr>
+              </thead>
+              <tbody id="listTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+
+      <section class="settings" aria-label="추천 설정">
+        <h2>설정</h2>
+        <label class="toggle">
+          <input type="checkbox" id="fairnessToggle" />
+          <span>중복 추천 방지</span>
+        </label>
+
+        <fieldset>
+          <legend>타입</legend>
+          <div class="radio-group">
+            <label>
+              <input type="radio" name="foodType" value="점심" checked />
+              점심
+            </label>
+            <label>
+              <input type="radio" name="foodType" value="저녁" />
+              저녁
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="range-control">
+          <label for="speedInput">
+            <span>속도</span>
+            <span id="speedValue">1.0x</span>
+          </label>
+          <input type="range" id="speedInput" min="0.6" max="2.4" step="0.1" value="1.0" aria-label="속도 조절" />
+        </div>
+
+        <label class="toggle">
+          <input type="checkbox" id="darkToggle" />
+          <span>다크 모드</span>
+        </label>
+      </section>
+    </div>
+
+    <script>
+      (() => {
+        'use strict';
+
+        const DATA = [
+          { type: '점심', name: '오제제', story: '자루 우동과 돈가츠 맛집' },
+          { type: '점심', name: '띤띤', story: '웨이팅 걱정 없는 베트남 음식점' },
+          { type: '점심', name: '바스버거', story: '감자칩이 무한 리필인 수제 햄버거 맛집' },
+          { type: '점심', name: '서울고기집', story: '삼겹살집이지만 점심엔 김치찌개로 대통일' },
+          { type: '점심', name: '란주칼면(란주라이멘)', story: '명동 도삭면 맛집' },
+          { type: '점심', name: '대원집', story: '제육볶음' },
+          { type: '점심', name: '마포갈매기', story: '돈까스집' },
+          { type: '점심', name: '우정함박', story: '가까운 돈까스집' },
+          { type: '점심', name: '빨간돼지', story: '순두부집' },
+          { type: '점심', name: '고냉지', story: '김치찌개집' },
+          { type: '점심', name: '착한고기', story: '돈까스 무한리필집' },
+          { type: '점심', name: '라세느', story: '런치 뷔페' },
+          { type: '점심', name: '하동관', story: '곰탕' },
+          { type: '점심', name: '황소고집', story: '불고기백반' },
+          { type: '점심', name: '해물점', story: '김치찜 전문' },
+          { type: '점심', name: '오봉집', story: '쭈꾸미, 제육볶음' },
+          { type: '점심', name: '원주집', story: '백반 맛집' },
+          { type: '점심', name: '이태리부대찌개', story: '부대찌개' },
+          { type: '저녁', name: '두레국수', story: '따뜻한 멸치국수' },
+          { type: '저녁', name: '연남연가', story: '숯불 고기와 소주' },
+          { type: '저녁', name: '도산막걸리', story: '전과 막걸리' },
+          { type: '저녁', name: '스시오마카세', story: '가벼운 오마카세' },
+          { type: '저녁', name: '홍대포차', story: '매운 안주와 맥주' },
+          { type: '저녁', name: '곱도리탕', story: '얼큰한 곱창 전골' },
+          { type: '저녁', name: '을지로골뱅이', story: '골뱅이 소면과 맥주' },
+          { type: '저녁', name: '청담스테이크', story: '촛불 아래 스테이크' },
+          { type: '저녁', name: '한남바베큐', story: '저온 조리 바베큐' },
+        ];
+
+        const TYPE_OPTIONS = ['점심', '저녁'];
+        const STORAGE_KEY = 'foodPicker.settings.v2';
+        const MAX_HISTORY = 30;
+        const BASE_SPEED = 140;
+
+        const stageEl = document.getElementById('stage');
+        const confettiEl = document.getElementById('confettiLayer');
+        const toggleBtn = document.getElementById('toggleBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const fairnessToggle = document.getElementById('fairnessToggle');
+        const darkToggle = document.getElementById('darkToggle');
+        const speedInput = document.getElementById('speedInput');
+        const speedValue = document.getElementById('speedValue');
+        const resultCard = document.getElementById('resultCard');
+        const historyList = document.getElementById('historyList');
+        const listSummary = document.getElementById('listSummary');
+        const listFilter = document.getElementById('listFilter');
+        const listTableBody = document.getElementById('listTableBody');
+        const typeRadios = Array.from(document.querySelectorAll('input[name="foodType"]'));
+
+        const state = {
+          type: '점심',
+          tags: [],
+          running: false,
+          decelerating: false,
+          decelStart: 0,
+          stageRect: null,
+          winnerTag: null,
+          settings: {
+            fairness: false,
+            speed: 1.0,
+            dark: false,
+          },
+          history: [],
+          fairnessUsage: {
+            점심: new Set(),
+            저녁: new Set(),
+          },
+          audioCtx: null,
+        };
+
+        const dateFormatter = new Intl.DateTimeFormat('ko-KR', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+
+        loadState();
+        applySettingsToUI();
+        updateListTable();
+        updateHistoryUI();
+        updateButtons();
+        clearWinner(true);
+        handleResize();
+
+        toggleBtn.addEventListener('click', () => {
+          if (state.decelerating) return;
+          if (state.running) {
+            stopAndPick();
+          } else {
+            startRun();
+          }
+        });
+
+        resetBtn.addEventListener('click', () => {
+          resetStage(true);
+          state.running = false;
+          state.decelerating = false;
+          updateButtons();
+        });
+
+        fairnessToggle.addEventListener('change', () => {
+          state.settings.fairness = fairnessToggle.checked;
+          if (!state.settings.fairness) {
+            state.fairnessUsage.점심.clear();
+            state.fairnessUsage.저녁.clear();
+          }
+          saveState();
+        });
+
+        darkToggle.addEventListener('change', () => {
+          state.settings.dark = darkToggle.checked;
+          setTheme(state.settings.dark);
+          saveState();
+        });
+
+        speedInput.addEventListener('input', () => {
+          const value = Number.parseFloat(speedInput.value);
+          if (!Number.isFinite(value)) return;
+          state.settings.speed = value;
+          updateSpeedLabel();
+          saveState();
+        });
+
+        typeRadios.forEach((radio) => {
+          radio.addEventListener('change', () => {
+            if (!radio.checked) return;
+            state.type = radio.value;
+            updateListTable();
+            saveState();
+          });
+        });
+
+        listFilter.addEventListener('input', () => {
+          updateListTable(listFilter.value.trim());
+        });
+
+        window.addEventListener('resize', handleResize);
+
+        let lastFrame = performance.now();
+        function frame(now) {
+          const delta = Math.min(0.05, (now - lastFrame) / 1000);
+          lastFrame = now;
+
+          if ((state.running || state.decelerating) && state.tags.length) {
+            if (!state.stageRect) {
+              state.stageRect = stageEl.getBoundingClientRect();
+            }
+            stepPhysics(delta);
+            renderStage();
+            setPlaceholderVisible(false);
+          }
+
+          requestAnimationFrame(frame);
+        }
+        requestAnimationFrame(frame);
+
+        function startRun() {
+          initRun();
+          state.running = true;
+          state.decelerating = false;
+          updateButtons();
+        }
+
+        function initRun() {
+          resetStage(false);
+          state.stageRect = stageEl.getBoundingClientRect();
+          const items = pickSubsetByType(state.type);
+          if (!items.length) return;
+          const stageWidth = Math.max(1, state.stageRect.width);
+          const stageHeight = Math.max(1, state.stageRect.height);
+
+          const area = stageWidth * stageHeight;
+          const multiplier = Math.min(2, Math.max(1, Math.floor(area / 120000)));
+          const cap = Math.max(items.length, 18);
+          const totalTags = Math.min(items.length * multiplier, cap);
+
+          const basePool = shuffleArray([...items]);
+          const pool = [];
+          for (let i = 0; i < totalTags; i += 1) {
+            pool.push(basePool[i % basePool.length]);
+            if ((i + 1) % basePool.length === 0) {
+              shuffleArray(basePool);
+            }
+          }
+
+          pool.forEach((item, index) => {
+            const el = document.createElement('div');
+            el.className = 'tag';
+            el.textContent = item.name;
+            stageEl.appendChild(el);
+
+            const rect = el.getBoundingClientRect();
+            const tagWidth = rect.width || 110;
+            const tagHeight = rect.height || 44;
+
+            const x = Math.random() * Math.max(1, stageWidth - tagWidth);
+            const y = Math.random() * Math.max(1, stageHeight - tagHeight);
+            const angle = Math.random() * Math.PI * 2;
+            const speed = BASE_SPEED * (0.65 + Math.random() * 0.75);
+            const vx = Math.cos(angle) * speed;
+            const vy = Math.sin(angle) * speed;
+
+            state.tags.push({
+              item,
+              el,
+              x,
+              y,
+              vx,
+              vy,
+              width: tagWidth,
+              height: tagHeight,
+              id: `${item.name}-${index}-${Date.now()}`,
+            });
+          });
+
+          renderStage();
+        }
+
+        function stopAndPick() {
+          if (!state.running || state.decelerating) return;
+          state.running = false;
+          state.decelerating = true;
+          state.decelStart = performance.now();
+          updateButtons();
+        }
+
+        function stepPhysics(delta) {
+          const rect = state.stageRect || stageEl.getBoundingClientRect();
+          state.stageRect = rect;
+          const width = rect.width;
+          const height = rect.height;
+
+          state.tags.forEach((tag) => {
+            tag.x += tag.vx * delta * state.settings.speed;
+            tag.y += tag.vy * delta * state.settings.speed;
+
+            if (tag.x <= 0) {
+              tag.x = 0;
+              tag.vx = Math.abs(tag.vx);
+            } else if (tag.x + tag.width >= width) {
+              tag.x = Math.max(0, width - tag.width);
+              tag.vx = -Math.abs(tag.vx);
+            }
+
+            if (tag.y <= 0) {
+              tag.y = 0;
+              tag.vy = Math.abs(tag.vy);
+            } else if (tag.y + tag.height >= height) {
+              tag.y = Math.max(0, height - tag.height);
+              tag.vy = -Math.abs(tag.vy);
+            }
+          });
+
+          if (state.decelerating) {
+            const elapsed = performance.now() - state.decelStart;
+            const damping = 0.88;
+            state.tags.forEach((tag) => {
+              tag.vx *= damping;
+              tag.vy *= damping;
+            });
+
+            if (elapsed >= 1500) {
+              finalizeStop();
+            }
+          }
+        }
+
+        function finalizeStop() {
+          state.decelerating = false;
+          state.tags.forEach((tag) => {
+            tag.vx = 0;
+            tag.vy = 0;
+          });
+          updateButtons();
+          computeWinner();
+          renderStage();
+        }
+
+        function computeWinner() {
+          if (!state.tags.length) return;
+
+          const data = pickSubsetByType(state.type);
+          if (!data.length) return;
+          const rect = state.stageRect || stageEl.getBoundingClientRect();
+          const centerX = rect.width / 2;
+          const centerY = rect.height / 2;
+
+          const ordered = state.tags
+            .map((tag) => {
+              const cx = tag.x + tag.width / 2;
+              const cy = tag.y + tag.height / 2;
+              const distance = Math.hypot(cx - centerX, cy - centerY);
+              return { tag, distance };
+            })
+            .sort((a, b) => a.distance - b.distance);
+
+          if (!ordered.length) return;
+
+          let winnerTag = ordered[0].tag;
+
+          if (state.settings.fairness) {
+            const usage = state.fairnessUsage[state.type];
+            if (usage.size >= data.length) {
+              usage.clear();
+            }
+            const fairCandidate = ordered.find(({ tag }) => !usage.has(tag.item.name));
+            if (fairCandidate) {
+              winnerTag = fairCandidate.tag;
+            } else {
+              usage.clear();
+            }
+            usage.add(winnerTag.item.name);
+          }
+
+          state.winnerTag = winnerTag;
+          state.tags.forEach((tag) => {
+            const isWinner = tag === winnerTag;
+            tag.el.classList.toggle('winner', isWinner);
+            tag.el.classList.toggle('dimmed', !isWinner);
+          });
+          setPlaceholderVisible(false);
+
+          const winner = winnerTag.item;
+          const timestamp = Date.now();
+          setResultCard(winner, timestamp);
+          addToHistory({ ...winner, type: state.type, timestamp });
+          playBeep();
+          createConfetti();
+          saveState();
+
+          requestAnimationFrame(() => {
+            try {
+              resultCard.focus({ preventScroll: true });
+            } catch (_error) {
+              resultCard.focus();
+            }
+          });
+        }
+
+        function setResultCard(item, timestamp) {
+          const formatted = formatTime(timestamp);
+          resultCard.innerHTML = `
+      <h3>${item.name}</h3>
+      <p>${item.story}</p>
+      <div class="result-meta">${state.type} · ${formatted}</div>
+    `;
+        }
+
+        function resetStage(showMessage) {
+          clearWinner(showMessage);
+          state.tags.forEach((tag) => {
+            if (tag.el && tag.el.parentElement === stageEl) {
+              stageEl.removeChild(tag.el);
+            }
+          });
+          state.tags = [];
+          state.stageRect = stageEl.getBoundingClientRect();
+        }
+
+        function clearWinner(showMessage) {
+          if (state.winnerTag && state.winnerTag.el) {
+            state.winnerTag.el.classList.remove('winner');
+          }
+          state.tags.forEach((tag) => {
+            tag.el.classList.remove('dimmed');
+          });
+          state.winnerTag = null;
+          if (showMessage) {
+            resultCard.innerHTML = '<p>아직 추천이 없습니다. [시작/멈춤]을 눌러보세요!</p>';
+            setPlaceholderVisible(true);
+          } else {
+            setPlaceholderVisible(false);
+          }
+        }
+
+        function renderStage() {
+          state.tags.forEach((tag) => {
+            tag.el.style.transform = `translate3d(${tag.x}px, ${tag.y}px, 0)`;
+            const baseZ = tag === state.winnerTag ? 999 : 100 + Math.round(tag.y);
+            tag.el.style.zIndex = String(baseZ);
+          });
+        }
+
+        function setPlaceholderVisible(isVisible) {
+          if (!stagePlaceholder) return;
+          stagePlaceholder.classList.toggle('hidden', !isVisible);
+        }
+        function pickSubsetByType(type) {
+          return DATA.filter((item) => item.type === type);
+        }
+
+        function shuffleArray(array) {
+          for (let i = array.length - 1; i > 0; i -= 1) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+          }
+          return array;
+        }
+
+        function updateButtons() {
+          if (state.decelerating) {
+            toggleBtn.disabled = true;
+            toggleBtn.textContent = '멈추는 중...';
+            toggleBtn.setAttribute('aria-label', '멈추는 중');
+            return;
+          }
+
+          toggleBtn.disabled = false;
+          if (state.running) {
+            toggleBtn.textContent = '멈춤';
+            toggleBtn.setAttribute('aria-label', '멈춤');
+          } else {
+            toggleBtn.textContent = '시작/멈춤';
+            toggleBtn.setAttribute('aria-label', '시작 또는 멈춤');
+          }
+        }
+
+        function updateListTable(filterText = '') {
+          const items = pickSubsetByType(state.type);
+          listSummary.textContent = `맛집 리스트 보기 (${items.length}개)`;
+
+          const normalized = filterText.toLowerCase();
+          const filtered = normalized
+            ? items.filter((item) => {
+                const hay = `${item.name} ${item.story}`.toLowerCase();
+                return hay.includes(normalized);
+              })
+            : items;
+
+          listTableBody.innerHTML = '';
+          if (!filtered.length) {
+            const row = document.createElement('tr');
+            row.className = 'empty-row';
+            const cell = document.createElement('td');
+            cell.colSpan = 2;
+            cell.textContent = '검색 결과가 없습니다.';
+            row.appendChild(cell);
+            listTableBody.appendChild(row);
+            return;
+          }
+
+          filtered.forEach((item) => {
+            const row = document.createElement('tr');
+            const nameCell = document.createElement('td');
+            nameCell.textContent = item.name;
+            const storyCell = document.createElement('td');
+            storyCell.textContent = item.story;
+            row.appendChild(nameCell);
+            row.appendChild(storyCell);
+            listTableBody.appendChild(row);
+          });
+        }
+
+        function updateHistoryUI() {
+          historyList.innerHTML = '';
+          if (!state.history.length) {
+            const li = document.createElement('li');
+            li.className = 'placeholder';
+            li.textContent = '기록이 없습니다.';
+            historyList.appendChild(li);
+            return;
+          }
+
+          state.history.forEach((entry) => {
+            const li = document.createElement('li');
+
+            const time = document.createElement('span');
+            time.className = 'history-time';
+            time.textContent = formatTime(entry.timestamp);
+
+            const name = document.createElement('span');
+            name.className = 'history-name';
+            name.textContent = `${entry.type} · ${entry.name}`;
+
+            const story = document.createElement('span');
+            story.className = 'history-story';
+            story.textContent = entry.story;
+
+            li.appendChild(time);
+            li.appendChild(name);
+            li.appendChild(story);
+            historyList.appendChild(li);
+          });
+        }
+
+        function addToHistory(entry) {
+          state.history.unshift(entry);
+          if (state.history.length > MAX_HISTORY) {
+            state.history.length = MAX_HISTORY;
+          }
+          updateHistoryUI();
+        }
+
+        function updateSpeedLabel() {
+          speedValue.textContent = `${state.settings.speed.toFixed(1)}x`;
+        }
+
+        function loadState() {
+          try {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (!stored) return;
+            const parsed = JSON.parse(stored);
+            if (parsed && typeof parsed === 'object') {
+              if (TYPE_OPTIONS.includes(parsed.type)) {
+                state.type = parsed.type;
+              }
+              if (parsed.settings) {
+                state.settings = {
+                  ...state.settings,
+                  ...parsed.settings,
+                };
+              }
+              if (Array.isArray(parsed.history)) {
+                state.history = parsed.history.slice(0, MAX_HISTORY);
+              }
+            }
+          } catch (error) {
+            console.warn('상태를 불러오지 못했습니다.', error);
+          }
+        }
+
+        function saveState() {
+          const payload = {
+            type: state.type,
+            settings: state.settings,
+            history: state.history,
+          };
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+          } catch (error) {
+            console.warn('상태를 저장하지 못했습니다.', error);
+          }
+        }
+
+        function applySettingsToUI() {
+          typeRadios.forEach((radio) => {
+            radio.checked = radio.value === state.type;
+          });
+          fairnessToggle.checked = state.settings.fairness;
+          darkToggle.checked = state.settings.dark;
+          speedInput.value = state.settings.speed.toString();
+          updateSpeedLabel();
+          setTheme(state.settings.dark);
+        }
+
+        function setTheme(isDark) {
+          document.body.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        }
+
+        function handleResize() {
+          state.stageRect = stageEl.getBoundingClientRect();
+          state.tags.forEach((tag) => {
+            tag.width = tag.el.offsetWidth;
+            tag.height = tag.el.offsetHeight;
+            tag.x = clamp(tag.x, 0, Math.max(0, state.stageRect.width - tag.width));
+            tag.y = clamp(tag.y, 0, Math.max(0, state.stageRect.height - tag.height));
+          });
+        }
+
+        function clamp(value, min, max) {
+          if (value < min) return min;
+          if (value > max) return max;
+          return value;
+        }
+
+        function formatTime(timestamp) {
+          try {
+            return dateFormatter.format(new Date(timestamp));
+          } catch (_error) {
+            const date = new Date(timestamp);
+            return (
+              `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` +
+              ` ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+            );
+          }
+        }
+
+        function playBeep() {
+          try {
+            if (!state.audioCtx) {
+              state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            const ctx = state.audioCtx;
+            if (ctx.state === 'suspended') {
+              ctx
+                .resume()
+                .then(runBeep)
+                .catch(() => {});
+            } else {
+              runBeep();
+            }
+
+            function runBeep() {
+              const now = ctx.currentTime;
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.type = 'triangle';
+              osc.frequency.setValueAtTime(720, now);
+              gain.gain.setValueAtTime(0.0001, now);
+              gain.gain.exponentialRampToValueAtTime(0.08, now + 0.01);
+              gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
+              osc.connect(gain).connect(ctx.destination);
+              osc.start(now);
+              osc.stop(now + 0.3);
+            }
+          } catch (_error) {
+            // 모바일 브라우저가 거부하더라도 무시.
+          }
+        }
+
+        function createConfetti() {
+          confettiEl.innerHTML = '';
+          const colors = ['#f97316', '#fb923c', '#facc15', '#38bdf8', '#a855f7', '#22c55e'];
+          const pieces = 24;
+          for (let i = 0; i < pieces; i += 1) {
+            const piece = document.createElement('span');
+            piece.className = 'confetti-piece';
+            piece.style.left = `${Math.random() * 100}%`;
+            piece.style.setProperty('--x', `${(Math.random() - 0.5) * 140}px`);
+            piece.style.animationDelay = `${Math.random() * 0.25}s`;
+            piece.style.backgroundColor = colors[i % colors.length];
+            confettiEl.appendChild(piece);
+          }
+          setTimeout(() => {
+            confettiEl.innerHTML = '';
+          }, 1200);
+        }
+      })();
+    </script>
+  </body>
+</html>
